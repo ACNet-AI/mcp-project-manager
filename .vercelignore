@@ -1,0 +1,19 @@
+# Development files
+*.md
+.env.example
+tsconfig.json
+
+# Test files
+test/
+
+# Documentation
+docs/
+
+# Git files
+.git/
+
+# Security files
+*.pem
+
+# Keep essential files
+!app.yml 

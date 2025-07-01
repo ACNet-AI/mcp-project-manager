@@ -1,0 +1,27 @@
+{
+  "name": "mcp-project-manager",
+  "version": 2,
+  "builds": [
+    {
+      "src": "lib/index.js",
+      "use": "@vercel/node",
+      "config": {
+        "includeFiles": ["app.yml"]
+      }
+    }
+  ],
+  "routes": [
+    {
+      "src": "/(.*)",
+      "dest": "lib/index.js"
+    }
+  ],
+  "env": {
+    "NODE_ENV": "production"
+  },
+  "functions": {
+    "lib/index.js": {
+      "maxDuration": 30
+    }
+  }
+} 
