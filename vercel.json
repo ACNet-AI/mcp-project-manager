@@ -1,32 +1,25 @@
 {
-  "name": "mcp-project-manager",
-  "version": 2,
-  "buildCommand": "npm run build",
+  "$schema": "https://openapi.vercel.sh/vercel.json",
   "functions": {
     "lib/index.js": {
       "maxDuration": 30,
       "memory": 1024
     }
   },
-  "routes": [
+  "rewrites": [
     {
-      "src": "/api/(.*)",
-      "dest": "lib/index.js"
+      "source": "/api/(.*)",
+      "destination": "/lib/index.js"
     },
     {
-      "src": "/webhooks/(.*)",
-      "dest": "lib/index.js"
+      "source": "/webhooks/(.*)",
+      "destination": "/lib/index.js"
     },
     {
-      "src": "/(.*)",
-      "dest": "lib/index.js"
+      "source": "/(.*)",
+      "destination": "/lib/index.js"
     }
   ],
-  "env": {
-    "NODE_ENV": "production",
-    "LOG_LEVEL": "info",
-    "LOG_FORMAT": "json"
-  },
   "headers": [
     {
       "source": "/api/(.*)",
