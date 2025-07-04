@@ -1,23 +1,17 @@
 {
   "$schema": "https://openapi.vercel.sh/vercel.json",
-  "functions": {
-    "lib/index.js": {
-      "maxDuration": 30,
-      "memory": 1024
-    }
-  },
   "rewrites": [
     {
       "source": "/api/(.*)",
-      "destination": "/lib/index.js"
+      "destination": "/api/index.js"
     },
     {
       "source": "/webhooks/(.*)",
-      "destination": "/lib/index.js"
+      "destination": "/api/index.js"
     },
     {
       "source": "/(.*)",
-      "destination": "/lib/index.js"
+      "destination": "/api/index.js"
     }
   ],
   "headers": [
