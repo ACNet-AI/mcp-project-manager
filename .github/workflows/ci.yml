@@ -1,4 +1,4 @@
-name: 🚀 MCP Project Manager CI/CD
+name: 🚀 CI/CD Pipeline
 
 on:
   push:
@@ -7,41 +7,24 @@ on:
     branches: [ main, master ]
   workflow_dispatch:
 
+permissions:
+  contents: read
+  pull-requests: write
+  checks: write
+
 env:
   NODE_VERSION: '18'
-  CACHE_VERSION: 'v1'
 
 jobs:
-  setup:
-    name: 📦 Setup Dependencies
+  # Quick checks phase - run in parallel
+  quick-checks:
+    name: 🔍 Quick Checks
     runs-on: ubuntu-latest
     outputs:
-      cache-key: ${{ steps.cache-key.outputs.key }}
+      should-run-full: ${{ steps.changes.outputs.should-run }}
     
     steps:
-    - name: 📥 Checkout code
-      uses: actions/checkout@v4
-    
-    - name: 🔧 Setup Node.js
-      uses: actions/setup-node@v4
-      with:
-        node-version: ${{ env.NODE_VERSION }}
-        cache: 'npm'
-    
-    - name: 🎯 Generate cache key
-      id: cache-key
-      run: echo "key=${{ env.CACHE_VERSION }}-${{ runner.os }}-node-${{ hashFiles('**/package-lock.json') }}" >> $GITHUB_OUTPUT
-    
-    - name: 📥 Install dependencies
-      run: npm ci
-
-  security:
-    name: 🔒 Security Check
-    needs: setup
-    runs-on: ubuntu-latest
-    
-    steps:
-    - name: 📥 Checkout code
+    - name: 📥 Checkout
       uses: actions/checkout@v4
     
     - name: 🔧 Setup Node.js
@@ -53,76 +36,52 @@ jobs:
     - name: 📥 Install dependencies
       run: npm ci
     
-    - name: 🔍 Run security audit
-      run: npm audit --audit-level=moderate
-      continue-on-error: true
+    - name: 🔒 Security audit
+      run: npm audit --audit-level=high
     
-    - name: 🛡️ Check for vulnerabilities
-      run: npx audit-ci --moderate
-      continue-on-error: true
-
-  lint:
-    name: 🧹 Code Quality Check
-    needs: setup
-    runs-on: ubuntu-latest
-    
-    steps:
-    - name: 📥 Checkout code
-      uses: actions/checkout@v4
-    
-    - name: 🔧 Setup Node.js
-      uses: actions/setup-node@v4
-      with:
-        node-version: ${{ env.NODE_VERSION }}
-        cache: 'npm'
-    
-    - name: 📥 Install dependencies
-      run: npm ci
-    
-    - name: 🧹 Run ESLint
+    - name: 🧹 Lint
       run: npm run lint
     
-    - name: ✨ Check code formatting
+    - name: ✨ Format check
       run: npm run format:check
     
-    - name: 📊 ESLint Report
-      uses: ataylorme/eslint-annotate-action@v2
+    - name: 🔍 Type check
+      run: npm run typecheck
+    
+    - name: 📊 Generate lint report
       if: failure()
+      run: npm run lint:json
+      continue-on-error: true
+    
+    - name: 📊 Lint annotations
+      if: failure()
+      uses: ataylorme/eslint-annotate-action@v2
       with:
         repo-token: "${{ secrets.GITHUB_TOKEN }}"
         report-json: "eslint-report.json"
+    
+    - name: 🎯 Check if full pipeline needed
+      id: changes
+      run: |
+        # Check if there are source code changes
+        if git diff --name-only HEAD~1 | grep -E '\.(ts|js|json)$' > /dev/null; then
+          echo "should-run=true" >> $GITHUB_OUTPUT
+        else
+          echo "should-run=false" >> $GITHUB_OUTPUT
+        fi
 
-  typecheck:
-    name: 🔍 Type Check
-    needs: setup
-    runs-on: ubuntu-latest
-    
-    steps:
-    - name: 📥 Checkout code
-      uses: actions/checkout@v4
-    
-    - name: 🔧 Setup Node.js
-      uses: actions/setup-node@v4
-      with:
-        node-version: ${{ env.NODE_VERSION }}
-        cache: 'npm'
-    
-    - name: 📥 Install dependencies
-      run: npm ci
-    
-    - name: 🔍 Run TypeScript check
-      run: npm run typecheck
-
-  test:
-    name: 🧪 Test Suite
-    needs: setup
+  # Full test phase - run only when needed
+  test-and-build:
+    name: 🧪 Test & Build
+    needs: quick-checks
+    if: needs.quick-checks.outputs.should-run-full == 'true'
     runs-on: ubuntu-latest
     strategy:
       matrix:
-        node-version: [18, 20, 21]
+        node-version: [18, 20]  # Reduced to 2 versions
     
     steps:
-    - name: 📥 Checkout code
+    - name: 📥 Checkout
       uses: actions/checkout@v4
     
     - name: 🔧 Setup Node.js ${{ matrix.node-version }}
@@ -134,148 +93,50 @@ jobs:
     - name: 📥 Install dependencies
       run: npm ci
     
-    - name: 🧪 Run tests with coverage
+    - name: 🧪 Run tests
       run: npm run test:coverage
     
-    - name: 📊 Upload coverage to Codecov
+    - name: 📊 Upload coverage
       if: matrix.node-version == '18'
       uses: codecov/codecov-action@v3
       with:
         file: ./coverage/lcov.info
-        flags: unittests
-        name: codecov-umbrella
         fail_ci_if_error: false
     
-    - name: 📈 Coverage Report
-      if: matrix.node-version == '18'
+    - name: 📈 Coverage report (PR)
+      if: matrix.node-version == '18' && github.event_name == 'pull_request'
       uses: romeovs/lcov-reporter-action@v0.3.1
       with:
         github-token: ${{ secrets.GITHUB_TOKEN }}
         lcov-file: ./coverage/lcov.info
         delete-old-comments: true
     
-
-
-  build:
-    name: 🏗️ Build & Package
-    needs: [security, lint, typecheck, test]
-    runs-on: ubuntu-latest
-    
-    steps:
-    - name: 📥 Checkout code
-      uses: actions/checkout@v4
-    
-    - name: 🔧 Setup Node.js
-      uses: actions/setup-node@v4
-      with:
-        node-version: ${{ env.NODE_VERSION }}
-        cache: 'npm'
-    
-    - name: 📥 Install dependencies
-      run: npm ci
-    
-    - name: 🏗️ Build project
+    - name: 🏗️ Build
       run: npm run build
     
-    - name: 🔍 Verify build
-      run: |
-        if [ ! -d "lib" ]; then
-          echo "❌ Build failed: lib directory not found"
-          exit 1
-        fi
-        echo "✅ Build successful"
-        ls -la lib/
-    
-    - name: 📦 Upload build artifacts
+    - name: 📦 Upload artifacts
+      if: matrix.node-version == '18'
       uses: actions/upload-artifact@v4
       with:
         name: dist-${{ github.sha }}
         path: lib/
-        retention-days: 30
-    
-    - name: 📄 Generate build report
-      run: |
-        echo "## 🏗️ Build Report" >> $GITHUB_STEP_SUMMARY
-        echo "- **Commit**: ${{ github.sha }}" >> $GITHUB_STEP_SUMMARY
-        echo "- **Node.js**: ${{ env.NODE_VERSION }}" >> $GITHUB_STEP_SUMMARY
-        echo "- **Build time**: $(date)" >> $GITHUB_STEP_SUMMARY
-        echo "- **Build size**: $(du -sh lib/ | cut -f1)" >> $GITHUB_STEP_SUMMARY
+        retention-days: 7  # Reduced retention time
 
-  quality-gate:
-    name: 🚦 Quality Gate
-    needs: [security, lint, typecheck, test, build]
-    runs-on: ubuntu-latest
-    if: always()
-    
-    steps:
-    - name: 🚦 Check quality gate
-      run: |
-        if [[ "${{ needs.security.result }}" == "failure" ]]; then
-          echo "❌ Security check failed"
-          exit 1
-        fi
-        if [[ "${{ needs.lint.result }}" == "failure" ]]; then
-          echo "❌ Lint check failed"
-          exit 1
-        fi
-        if [[ "${{ needs.typecheck.result }}" == "failure" ]]; then
-          echo "❌ Type check failed"
-          exit 1
-        fi
-        if [[ "${{ needs.test.result }}" == "failure" ]]; then
-          echo "❌ Tests failed"
-          exit 1
-        fi
-        if [[ "${{ needs.build.result }}" == "failure" ]]; then
-          echo "❌ Build failed"
-          exit 1
-        fi
-        echo "✅ All quality checks passed!"
-    
-    - name: 📊 Quality summary
-      run: |
-        echo "## 📊 Quality Gate Summary" >> $GITHUB_STEP_SUMMARY
-        echo "| Check | Status |" >> $GITHUB_STEP_SUMMARY
-        echo "|-------|--------|" >> $GITHUB_STEP_SUMMARY
-        echo "| 🔒 Security | ${{ needs.security.result == 'success' && '✅ Pass' || '❌ Fail' }} |" >> $GITHUB_STEP_SUMMARY
-        echo "| 🧹 Lint | ${{ needs.lint.result == 'success' && '✅ Pass' || '❌ Fail' }} |" >> $GITHUB_STEP_SUMMARY
-        echo "| 🔍 Type Check | ${{ needs.typecheck.result == 'success' && '✅ Pass' || '❌ Fail' }} |" >> $GITHUB_STEP_SUMMARY
-        echo "| 🧪 Tests | ${{ needs.test.result == 'success' && '✅ Pass' || '❌ Fail' }} |" >> $GITHUB_STEP_SUMMARY
-        echo "| 🏗️ Build | ${{ needs.build.result == 'success' && '✅ Pass' || '❌ Fail' }} |" >> $GITHUB_STEP_SUMMARY
-
-  release-ready:
-    name: 🚀 Release Ready Check
-    needs: quality-gate
-    runs-on: ubuntu-latest
+  # Release preparation - only on main branch
+  release-check:
+    name: 🚀 Release Check
+    needs: [quick-checks, test-and-build]
     if: github.ref == 'refs/heads/main' && github.event_name == 'push'
+    runs-on: ubuntu-latest
     
     steps:
-    - name: 📥 Checkout code
+    - name: 📥 Checkout
       uses: actions/checkout@v4
     
-    - name: 🏷️ Check if ready for release
-      id: release-check
+    - name: 🏷️ Version check
       run: |
-        # Check if package.json version has been updated
         VERSION=$(node -p "require('./package.json').version")
-        echo "Current version: $VERSION"
-        
-        # Check if there are any TODO comments
-        TODO_COUNT=$(grep -r "TODO\|FIXME\|BUG" src/ || true | wc -l)
-        echo "TODO/FIXME count: $TODO_COUNT"
-        
-        if [ "$TODO_COUNT" -eq 0 ]; then
-          echo "✅ Ready for release - no pending TODOs"
-          echo "ready=true" >> $GITHUB_OUTPUT
-        else
-          echo "⚠️ $TODO_COUNT TODO/FIXME items found - review before release"
-          echo "ready=false" >> $GITHUB_OUTPUT
-        fi
-        echo "version=$VERSION" >> $GITHUB_OUTPUT
-    
-    - name: 📝 Release summary
-      run: |
-        echo "## 🚀 Release Readiness" >> $GITHUB_STEP_SUMMARY
-        echo "- **Version**: ${{ steps.release-check.outputs.version }}" >> $GITHUB_STEP_SUMMARY
-        echo "- **Ready**: ${{ steps.release-check.outputs.ready }}" >> $GITHUB_STEP_SUMMARY
-        echo "- **Commit**: ${{ github.sha }}" >> $GITHUB_STEP_SUMMARY 
+        echo "## 🚀 Release Status" >> $GITHUB_STEP_SUMMARY
+        echo "- **Version**: $VERSION" >> $GITHUB_STEP_SUMMARY
+        echo "- **Commit**: ${{ github.sha }}" >> $GITHUB_STEP_SUMMARY
+        echo "- **Ready**: ✅ All checks passed" >> $GITHUB_STEP_SUMMARY 

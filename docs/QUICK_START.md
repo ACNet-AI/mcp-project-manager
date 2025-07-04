@@ -42,7 +42,7 @@ curl -X POST https://mcp-project-manager.vercel.app/api/publish \
 
 ### 1. Clone & Setup
 ```bash
-git clone https://github.com/mcp-servers-hub/mcp-project-manager.git
+git clone https://github.com/ACNet-AI/mcp-project-manager.git
 cd mcp-project-manager
 npm install
 ```

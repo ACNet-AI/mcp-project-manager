@@ -33,6 +33,7 @@
     "test:coverage": "jest --coverage",
     "test:ci": "jest --coverage --ci --testResultsProcessor=jest-junit",
     "lint": "eslint src --ext .ts",
+    "lint:json": "eslint src --ext .ts --format json --output-file eslint-report.json",
     "lint:fix": "eslint src --ext .ts --fix",
     "format": "prettier --write \"src/**/*.ts\"",
     "format:check": "prettier --check \"src/**/*.ts\"",
