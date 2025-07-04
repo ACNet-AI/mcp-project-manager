@@ -10,123 +10,99 @@
 # Read more about GitHub App Manifests:
 # https://developer.github.com/apps/building-github-apps/creating-github-apps-from-a-manifest/
 
-# MCP项目管理器 - GitHub App配置清单
-# 用于自动管理MCP服务器项目的注册、验证和发布
+# MCP Project Manager - GitHub App Configuration Manifest
+# For automated management of MCP server project registration, validation and publishing
 
-# 订阅的GitHub事件列表
+# List of subscribed GitHub events
 default_events:
-  - issues
-  - pull_request           # PR事件：验证项目结构
-  - push                   # Push事件：更新注册表
-  - release                # Release事件：版本管理
-  - repository             # Repository事件：新项目添加
-  - create                 # 分支/标签创建事件
+  # Repository core events
+  - repository                 # Repository creation, settings changes
+  - push                       # Code push: trigger validation and registration
+  
+  # Collaboration and feedback events
+  - issues                     # Issue creation: project validation feedback
+  - issue_comment              # Issue comments: detailed feedback and discussion
+  - pull_request               # PR events: code review and validation
+  - pull_request_review        # PR review: quality control feedback
+  
+  # Release and status events
+  - release                    # Release publishing: version management
+  - check_run                  # Check runs: real-time quality feedback
+  - status                     # Commit status: CI/CD result feedback
 
-# GitHub App所需权限
+# ⭐ Key configuration: enable user authorization flow
+request_oauth_on_install: true
+
+# Device flow support (for CLI tools, etc.)
+enable_device_flow: true
+
+# Repository-level permissions
 default_permissions:
-  # 仓库内容：读写文件、提交、分支、发布版本
+  # ⭐ Core permission: create and manage repositories
+  administration: write
+  
+  # ⭐ Core permission: code management
   contents: write
   
-  # Issues：项目验证反馈
-  issues: write
-  
-  # Pull Requests：自动验证和合并
-  pull_requests: write
-  
-  # 仓库元数据：读取基本信息
+  # ⭐ Core permission: repository information reading
   metadata: read
   
-  # 提交状态：CI/CD状态检查
-  statuses: write
+  # ⭐ Core permission: project validation feedback
+  issues: write
   
-  # 检查套件：运行自动化检查
+  # ⭐ Core permission: PR validation and auto-merge
+  pull_requests: write
+  
+  # 🔧 Production required: CI/CD status feedback
+  commit_statuses: write
+  
+  # 🔧 Production required: project quality checks
   checks: write
   
-  # 仓库管理：项目设置
-  administration: read
+# User-level permissions (required for User Authorization)
+default_user_permissions:
+  # User basic information (required for repository creation)
+  profile: read
   
-  # 组织项目：管理项目板
-  repository_projects: write
+  # 🔧 Production required: correct committer information
+  email_addresses: read
 
-# App基本信息
-name: MCP Project Manager
-url: https://github.com/mcp-servers-hub
-description: 自动化MCP服务器项目的注册、验证和发布管理
+# App basic information
+name: "MCP Project Manager"
+url: "https://github.com/guyue/mcp-project-manager"
+hook_attributes:
+  url: "https://your-domain.com/api/webhook"
+redirect_url: "https://your-domain.com/api/auth/callback"
+callback_urls:
+  - "https://your-domain.com/api/auth/callback"
+description: |
+  🤖 Automated project management center for MCP ecosystem
+  
+  Core features:
+  • Create GitHub repositories (personal/organization)
+  • Push project code files
+  • Project structure validation and quality checks
+  • Auto-register to MCP server hub
+  • Real-time status feedback and user experience
+  
+  🔐 Permission design principles:
+  • Practical minimum permissions: only includes core functionality and user experience essential permissions
+  • Production ready: ensures complete functionality in real-world usage scenarios
+  • User friendly: provides timely feedback to avoid user confusion
+
+# Public application, supports community installation
 public: true
 
-# The set of permissions needed by the GitHub App. The format of the object uses
-# the permission name for the key (for example, issues) and the access type for
-# the value (for example, write).
-# Valid values are `read`, `write`, and `none`
-# default_permissions:
-#   # Repository creation, deletion, settings, teams, and collaborators.
-#   # https://developer.github.com/v3/apps/permissions/#permission-on-administration
-#   # administration: read
-#
-#   # Checks on code.
-#   # https://developer.github.com/v3/apps/permissions/#permission-on-checks
-#   # checks: read
-#
-#   # Repository contents, commits, branches, downloads, releases, and merges.
-#   # https://developer.github.com/v3/apps/permissions/#permission-on-contents
-#   # contents: read
-#
-#   # Deployments and deployment statuses.
-#   # https://developer.github.com/v3/apps/permissions/#permission-on-deployments
-#   # deployments: read
-#
-#   # Issues and related comments, assignees, labels, and milestones.
-#   # https://developer.github.com/v3/apps/permissions/#permission-on-issues
-#   issues: write
-#
-#   # Search repositories, list collaborators, and access repository metadata.
-#   # https://developer.github.com/v3/apps/permissions/#metadata-permissions
-#   metadata: read
-#
-#   # Retrieve Pages statuses, configuration, and builds, as well as create new builds.
-#   # https://developer.github.com/v3/apps/permissions/#permission-on-pages
-#   # pages: read
-#
-#   # Pull requests and related comments, assignees, labels, milestones, and merges.
-#   # https://developer.github.com/v3/apps/permissions/#permission-on-pull-requests
-#   # pull_requests: read
-#
-#   # Manage the post-receive hooks for a repository.
-#   # https://developer.github.com/v3/apps/permissions/#permission-on-repository-hooks
-#   # repository_hooks: read
-#
-#   # Manage repository projects, columns, and cards.
-#   # https://developer.github.com/v3/apps/permissions/#permission-on-repository-projects
-#   # repository_projects: read
-#
-#   # Retrieve security vulnerability alerts.
-#   # https://developer.github.com/v4/object/repositoryvulnerabilityalert/
-#   # vulnerability_alerts: read
-#
-#   # Commit statuses.
-#   # https://developer.github.com/v3/apps/permissions/#permission-on-statuses
-#   # statuses: read
-#
-#   # Organization members and teams.
-#   # https://developer.github.com/v3/apps/permissions/#permission-on-members
-#   # members: read
-#
-#   # View and manage users blocked by the organization.
-#   # https://developer.github.com/v3/apps/permissions/#permission-on-organization-user-blocking
-#   # organization_user_blocking: read
-#
-#   # Manage organization projects, columns, and cards.
-#   # https://developer.github.com/v3/apps/permissions/#permission-on-organization-projects
-#   # organization_projects: read
-#
-#   # Manage team discussions and related comments.
-#   # https://developer.github.com/v3/apps/permissions/#permission-on-team-discussions
-#   # team_discussions: read
-#
-#   # Manage the post-receive hooks for an organization.
-#   # https://developer.github.com/v3/apps/permissions/#permission-on-organization-hooks
-#   # organization_hooks: read
-#
-#   # Get notified of, and update, content references.
-#   # https://developer.github.com/v3/apps/permissions/
-#   # organization_administration: read
+# Support multiple installation methods
+installation_type: account_and_repository
+
+# Webhook configuration
+webhook_active: true
+
+# Organization-level permissions (for operations within organizations)
+organization_permissions:
+  # ⭐ Core permission: create repositories in organizations
+  administration: write
+
+# Single user application: set to false to support multi-user installation
+single_file_name: false

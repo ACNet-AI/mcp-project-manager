@@ -1,0 +1,42 @@
+{
+  "ref": "refs/heads/main",
+  "before": "0000000000000000000000000000000000000000",
+  "after": "db99a87c58254f094a31a4fea71c028",
+  "repository": {
+    "id": 123456789,
+    "name": "test-mcp-project", 
+    "full_name": "testuser/test-mcp-project",
+    "private": false,
+    "html_url": "https://github.com/testuser/test-mcp-project",
+    "description": "Test MCP project for integration testing",
+    "default_branch": "main"
+  },
+  "commits": [
+    {
+      "id": "db99a87c58254f094a31a4fea71c028",
+      "message": "feat: add MCP server implementation",
+      "author": {
+        "name": "Test User",
+        "email": "test@example.com"
+      },
+      "added": ["src/server.py"],
+      "removed": [],
+      "modified": ["README.md"]
+    }
+  ],
+  "head_commit": {
+    "id": "db99a87c58254f094a31a4fea71c028",
+    "message": "feat: add MCP server implementation",
+    "author": {
+      "name": "Test User", 
+      "email": "test@example.com"
+    }
+  },
+  "pusher": {
+    "name": "testuser",
+    "email": "test@example.com"
+  },
+  "installation": {
+    "id": 12345678
+  }
+} 

@@ -1,8 +1,8 @@
 {
   "name": "mcp-project-manager",
   "version": "1.0.0",
-  "description": "自动化管理MCP服务器项目的注册、验证和发布",
-  "author": "MCP生态系统 <mcp@example.com>",
+  "description": "Automated management of MCP server project registration, validation and publishing",
+  "author": "ACNet-AI <agencollabnet@gmail.com>",
   "license": "MIT",
   "homepage": "https://github.com/mcp-servers-hub/mcp-project-manager",
   "repository": {
@@ -30,6 +30,8 @@
     "start": "probot run ./lib/index.js",
     "test": "jest",
     "test:watch": "jest --watch",
+    "test:coverage": "jest --coverage",
+    "test:ci": "jest --coverage --ci --testResultsProcessor=jest-junit",
     "lint": "eslint src --ext .ts",
     "lint:fix": "eslint src --ext .ts --fix",
     "format": "prettier --write \"src/**/*.ts\"",
@@ -37,7 +39,8 @@
     "typecheck": "tsc --noEmit",
     "clean": "rimraf lib",
     "prebuild": "npm run clean",
-    "prepare": "npm run build"
+    "prepare": "npm run build",
+    "verify": "npm run typecheck && npm run lint && npm run format:check && npm run test:coverage"
   },
   "dependencies": {
     "probot": "^13.4.5"
@@ -45,8 +48,10 @@
   "devDependencies": {
     "@types/jest": "^29.5.8",
     "@types/node": "^20.19.2",
+    "@types/supertest": "^6.0.3",
     "@typescript-eslint/eslint-plugin": "^6.21.0",
     "@typescript-eslint/parser": "^6.21.0",
+    "audit-ci": "^7.1.0",
     "eslint": "^8.54.0",
     "eslint-config-prettier": "^9.0.0",
     "eslint-plugin-prettier": "^5.0.1",
@@ -55,8 +60,9 @@
     "nodemon": "^3.0.1",
     "prettier": "^3.1.0",
     "rimraf": "^5.0.5",
+    "supertest": "^7.1.1",
     "ts-jest": "^29.1.1",
-    "typescript": "^5.2.2"
+    "typescript": "^5.3.3"
   },
   "jest": {
     "preset": "ts-jest",

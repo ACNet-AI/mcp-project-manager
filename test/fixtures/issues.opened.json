@@ -2,8 +2,8 @@
   "action": "opened",
   "issue": {
     "number": 1,
-    "title": "添加项目测试",
-    "body": "测试issue body",
+    "title": "Add new MCP server project",
+    "body": "I want to add a new MCP server to the project",
     "user": {
       "login": "hiimbex"
     }

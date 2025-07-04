@@ -1,93 +1,99 @@
 import { Probot } from "probot";
 import { WebhookHandler } from "./webhook-handler";
+import { ApiServer } from "./api-server";
+import { ErrorHandler } from "./errors";
+import { notifyError } from "./utils/notification";
 
 /**
- * MCP项目管理器
- * 自动化管理MCP服务器项目的注册、验证和发布流程
+ * MCP Project Manager - GitHub App
+ * Function: Automate the creation, publishing, and registration management of MCP server projects
  */
-export default (app: Probot) => {
-  app.log.info("🚀 MCP项目管理器启动中...");
+export = (app: Probot) => {
+  app.log.info("🚀 MCP Project Manager started");
 
-  // 创建统一的事件处理器实例
+  // Create Webhook handler instance
   const webhookHandler = new WebhookHandler();
 
-  /**
-   * Issues事件处理
-   * - 项目支持和反馈
-   * - 自动化问题分类
-   */
-  app.on("issues.opened", async (context) => {
-    await webhookHandler.handleIssues(context);
-  });
-  
-  app.on("issues.labeled", async (context) => {
-    await webhookHandler.handleIssues(context);
+  // ===== Global error handling =====
+  app.onError(async error => {
+    const appError = ErrorHandler.normalize(error, "Global error");
+    app.log.error(`🚨 Global error: ${appError}`);
   });
 
-  /**
-   * Pull Request事件处理
-   * - 验证项目结构
-   * - 检查配置文件
-   * - 自动合并符合条件的PR
-   */
-  app.on("pull_request.opened", async (context) => {
-    await webhookHandler.handlePullRequest(context);
-  });
-  
-  app.on("pull_request.synchronize", async (context) => {
-    await webhookHandler.handlePullRequest(context);
-  });
-  
-  app.on("pull_request.closed", async (context) => {
-    await webhookHandler.handlePullRequest(context);
+  // ===== Webhook event handling =====
+
+  // 🆕 Installation event - triggered when user installs App
+  app.on(["installation.created", "installation.deleted"], async context => {
+    try {
+      await webhookHandler.handleInstallation(context);
+    } catch (error) {
+      const appError = ErrorHandler.normalize(error, "Installation event handling");
+      context.log.error("Installation event error:", appError);
+      await notifyError(context, appError, "installation event processing");
+    }
   });
 
-  /**
-   * Push事件处理
-   * - 更新注册表
-   * - 触发CI/CD流程
-   */
-  app.on("push", async (context) => {
-    await webhookHandler.handlePush(context);
+  // Push event
+  app.on("push", async context => {
+    try {
+      await webhookHandler.handlePush(context);
+    } catch (error) {
+      const appError = ErrorHandler.normalize(error, "Push event handling");
+      context.log.error("Push event error:", appError);
+      await notifyError(context, appError, "push event processing");
+    }
   });
 
-  /**
-   * Release事件处理
-   * - 版本发布通知
-   * - 更新版本信息
-   */
-  app.on("release.published", async (context) => {
-    await webhookHandler.handleRelease(context);
+  // Pull Request event
+  app.on(
+    ["pull_request.opened", "pull_request.synchronize", "pull_request.closed"],
+    async context => {
+      try {
+        await webhookHandler.handlePullRequest(context);
+      } catch (error) {
+        const appError = ErrorHandler.normalize(error, "Pull request event handling");
+        context.log.error("Pull request event error:", appError);
+        await notifyError(context, appError, "pull request event processing");
+      }
+    }
+  );
+
+  // Release event
+  app.on("release.published", async context => {
+    try {
+      await webhookHandler.handleRelease(context);
+    } catch (error) {
+      const appError = ErrorHandler.normalize(error, "Release event handling");
+      context.log.error("Release event error:", appError);
+      await notifyError(context, appError, "release event processing");
+    }
   });
 
-  /**
-   * Repository事件处理
-   * - 新项目初始化
-   * - 自动添加到注册表
-   */
-  app.on("repository.created", async (context) => {
-    await webhookHandler.handleRepository(context);
+  // Issues event
+  app.on(["issues.opened", "issues.labeled"], async context => {
+    try {
+      await webhookHandler.handleIssues(context);
+    } catch (error) {
+      const appError = ErrorHandler.normalize(error, "Issues event handling");
+      context.log.error("Issues event error:", appError);
+      await notifyError(context, appError, "issues event processing");
+    }
   });
 
-  /**
-   * 错误处理
-   */
-  app.onError(async (error) => {
-    app.log.error("❌ MCP项目管理器出错:", error);
+  // Repository event
+  app.on("repository.created", async context => {
+    try {
+      await webhookHandler.handleRepository(context);
+    } catch (error) {
+      const appError = ErrorHandler.normalize(error, "Repository event handling");
+      context.log.error("Repository event error:", appError);
+      await notifyError(context, appError, "repository event processing");
+    }
   });
 
-  /**
-   * 通用事件监听（调试用）
-   */
-  app.onAny(async (context) => {
-    app.log.info(`📡 收到事件: ${context.name}.${(context.payload as any).action || 'unknown'}`);
-  });
+  // ===== API server setup =====
+  const apiServer = new ApiServer();
+  apiServer.setProbotInstance(app);
 
-  app.log.info("✅ MCP项目管理器已准备就绪!");
-
-  // For more information on building apps:
-  // https://probot.github.io/docs/
-
-  // To get your app running against GitHub, see:
-  // https://probot.github.io/docs/development/
+  app.log.info("✅ MCP Project Manager initialized");
 };

@@ -1,178 +1,287 @@
-# 部署指南 - 连接现有GitHub App
+# 🚀 MCP Project Manager - Deployment Guide
 
-## 前提条件
-✅ GitHub App已创建: [MCP Project Manager](https://github.com/apps/mcp-project-manager)  
-✅ 代码开发完成  
-🔲 需要配置部署
+## Production Deployment
 
-## 步骤1: 获取GitHub App配置信息
+### Prerequisites
+- **GitHub App**: Production-ready GitHub App with proper permissions
+- **Vercel Account**: For serverless deployment
+- **Domain**: Custom domain (optional but recommended)
 
-访问 GitHub App 设置页面：
-```
-https://github.com/settings/apps/mcp-project-manager
-```
+---
 
-### 需要获取的信息：
-1. **App ID**: 在设置页面顶部显示
-2. **Client ID**: 在 OAuth 部分显示
-3. **Client Secret**: 点击"Generate a new client secret"生成
-4. **Private Key**: 点击"Generate a private key"下载 `.pem` 文件
-5. **Webhook Secret**: 在 Webhooks 部分设置一个安全密钥
+## Vercel Deployment
 
-## 步骤2: 安全存储私钥
-
-### ⚠️ 重要：私钥管理安全原则
-- **绝不要**将私钥文件放在项目代码中
-- **绝不要**提交私钥到Git仓库
-- **使用环境变量**存储私钥内容
-
-### 2.1 处理私钥文件
-下载的 `private-key.pem` 文件内容看起来像这样：
-```
------BEGIN RSA PRIVATE KEY-----
-MIIEpAIBAAKCAQEA...
-[很长的base64编码内容]
-...
------END RSA PRIVATE KEY-----
-```
-
-### 2.2 本地开发环境变量
-创建 `.env` 文件：
-```env
-APP_ID=你的App_ID
-PRIVATE_KEY="-----BEGIN RSA PRIVATE KEY-----\nMIIEpAIBAAKCAQEA...\n-----END RSA PRIVATE KEY-----"
-WEBHOOK_SECRET=你设置的webhook密钥
-GITHUB_CLIENT_ID=你的Client_ID
-GITHUB_CLIENT_SECRET=你的Client_Secret
-NODE_ENV=development
-```
-
-**注意**: 私钥中的换行符需要用 `\n` 替换
-
-## 步骤3: 更新代码以使用环境变量
-
-需要修改代码以从环境变量读取私钥而不是文件：
-
-### 3.1 更新 src/index.ts
-```typescript
-import { Probot } from "probot";
-
-export = (app: Probot) => {
-  // 从环境变量读取私钥
-  const privateKey = process.env.PRIVATE_KEY;
-  
-  if (!privateKey) {
-    throw new Error("PRIVATE_KEY environment variable is required");
-  }
-  
-  // 其他代码保持不变...
-};
-```
-
-## 步骤4: 安装依赖和构建
+### 1. Initial Setup
 
 ```bash
-npm install
-npm run build
+# Install Vercel CLI
+npm i -g vercel
+
+# Login and link project
+vercel login
+vercel link
 ```
 
-## 步骤5: 部署到Vercel
+### 2. Environment Variables
 
-### 5.1 安装Vercel CLI
+Set the following environment variables in Vercel Dashboard:
+
 ```bash
-npm install -g vercel
+# GitHub App Configuration
+GITHUB_APP_ID=123456
+GITHUB_CLIENT_ID=Iv1.1234567890abcdef
+GITHUB_CLIENT_SECRET=your_client_secret_here
+GITHUB_PRIVATE_KEY=-----BEGIN RSA PRIVATE KEY-----\nMIIEpAIBAAKCAQEA...\n-----END RSA PRIVATE KEY-----
+GITHUB_WEBHOOK_SECRET=your_webhook_secret_here
+
+# Production Configuration
+NODE_ENV=production
+LOG_LEVEL=info
 ```
 
-### 5.2 配置Vercel环境变量
+**Important**: Use the full private key content (with `\n` for line breaks) in `GITHUB_PRIVATE_KEY`, not a file path.
+
+### 3. Deploy
+
 ```bash
-# 设置基本变量
-vercel env add APP_ID
-vercel env add WEBHOOK_SECRET
-vercel env add GITHUB_CLIENT_ID
-vercel env add GITHUB_CLIENT_SECRET
+# Preview deployment
+vercel
 
-# 设置私钥（重要：复制完整的私钥内容包括BEGIN和END行）
-vercel env add PRIVATE_KEY
-```
-
-当提示输入 `PRIVATE_KEY` 时，粘贴完整的私钥内容，包括：
-```
------BEGIN RSA PRIVATE KEY-----
-[私钥内容]
------END RSA PRIVATE KEY-----
-```
-
-### 5.3 部署
-```bash
+# Production deployment
 vercel --prod
 ```
 
-## 步骤6: 更新GitHub App Webhook URL
+### 4. Custom Domain (Optional)
 
-部署完成后，Vercel会提供一个URL，例如：
-```
-https://mcp-project-manager.vercel.app
-```
-
-返回GitHub App设置页面，更新Webhook URL为：
-```
-https://mcp-project-manager.vercel.app/api/github/webhooks
+```bash
+# Add custom domain
+vercel domains add your-domain.com
+vercel alias your-deployment-url.vercel.app your-domain.com
 ```
 
-## 步骤7: 安装到仓库
+---
 
-访问以下URL安装GitHub App到您的组织/仓库：
+## GitHub App Configuration
+
+### Production GitHub App Setup
+
+1. **Create Production App**:
+   - Go to [GitHub Apps](https://github.com/settings/apps)
+   - Click "New GitHub App"
+   - Use production domain for URLs
+
+2. **App Configuration**:
+   ```
+   App name: mcp-project-manager
+   Homepage URL: https://your-domain.com
+   Webhook URL: https://your-domain.com/api/github/webhooks
+   ```
+
+3. **Permissions**:
+   - Repository: `Contents: Write`, `Issues: Write`, `Metadata: Read`, `Pull requests: Write`
+   - Account: `Email addresses: Read`
+
+4. **Events**:
+   - Issues: `opened`, `closed`
+   - Pull requests: `opened`, `closed`
+   - Push: `repository`
+
+### Update Webhook URL
+
+After deployment, update your GitHub App webhook URL:
+1. Go to your GitHub App settings
+2. Update Webhook URL to: `https://your-domain.vercel.app/api/github/webhooks`
+3. Save changes
+
+---
+
+## Environment Variables Reference
+
+| Variable | Description | Required | Example |
+|----------|-------------|----------|---------|
+| `GITHUB_APP_ID` | GitHub App ID | ✅ | `123456` |
+| `GITHUB_CLIENT_ID` | GitHub App Client ID | ✅ | `Iv1.1234567890abcdef` |
+| `GITHUB_CLIENT_SECRET` | GitHub App Client Secret | ✅ | `your_client_secret` |
+| `GITHUB_PRIVATE_KEY` | GitHub App Private Key | ✅ | `-----BEGIN RSA...` |
+| `GITHUB_WEBHOOK_SECRET` | Webhook Secret | ✅ | `your_webhook_secret` |
+| `NODE_ENV` | Environment | ✅ | `production` |
+| `LOG_LEVEL` | Logging Level | ❌ | `info` |
+| `MCP_HUB_REPO` | MCP Hub Repository | ❌ | `ACNet-AI/mcp-servers-hub` |
+
+---
+
+## Security Best Practices
+
+### 1. Private Key Management
+- **Never commit private keys to version control**
+- Store private key securely in environment variables
+- Use Vercel's encrypted environment variables
+- Rotate keys regularly
+
+### 2. Webhook Security
+- Use a strong, random webhook secret
+- Validate webhook signatures
+- Implement rate limiting
+- Monitor webhook events
+
+### 3. Permissions
+- Grant minimum required permissions
+- Review GitHub App permissions regularly
+- Monitor app installations
+- Implement proper error handling
+
+---
+
+## Monitoring & Observability
+
+### 1. Logging
+```typescript
+// Production logging configuration
+const logger = getLogger('production', {
+  level: 'info',
+  format: 'json',
+  transports: ['console']
+});
 ```
-https://github.com/apps/mcp-project-manager/installations/new
+
+### 2. Error Tracking
+Integrate with error tracking services:
+- **Sentry**: For error monitoring
+- **LogRocket**: For session replay
+- **Datadog**: For APM
+
+### 3. Health Checks
+Monitor these endpoints:
+- `GET /health` - Basic health check
+- `GET /api/status` - Service status
+- `GET /api/info` - App information
+
+---
+
+## Scaling Considerations
+
+### 1. Rate Limiting
+GitHub API has rate limits:
+- **Primary rate limit**: 5,000 requests per hour
+- **Secondary rate limit**: 100 requests per minute
+- Implement exponential backoff
+
+### 2. Concurrent Processing
+```typescript
+// Limit concurrent operations
+const pLimit = require('p-limit');
+const limit = pLimit(5); // Max 5 concurrent operations
+
+const results = await Promise.all(
+  tasks.map(task => limit(() => processTask(task)))
+);
 ```
 
-选择要管理的仓库（建议先选择 `mcp-servers-hub` 仓库进行测试）。
+### 3. Database Considerations
+For high-volume usage, consider:
+- Redis for caching
+- PostgreSQL for persistent data
+- Connection pooling
 
-## 步骤8: 测试验证
+---
 
-### 8.1 检查Webhook接收
-在GitHub App设置页面的"Advanced"标签中，可以查看Webhook日志。
+## Backup & Recovery
 
-### 8.2 创建测试事件
-在安装了App的仓库中：
-1. 创建一个Issue - 应该触发自动标签
-2. 创建一个Pull Request - 应该触发项目验证
-3. Push代码 - 应该触发注册表更新
+### 1. Configuration Backup
+- Export GitHub App configuration
+- Document environment variables
+- Store private keys securely
 
-### 8.3 查看日志
-在Vercel控制台中查看函数执行日志，确认事件正常处理。
+### 2. Monitoring Alerts
+Set up alerts for:
+- Deployment failures
+- High error rates
+- API rate limit exceeded
+- Webhook failures
 
-## 私钥管理最佳实践
+---
 
-### ✅ 推荐做法
-1. **环境变量存储**: 在Vercel/Heroku等平台使用环境变量
-2. **密钥管理服务**: 使用AWS Secrets Manager、Azure Key Vault等
-3. **本地开发**: 使用 `.env` 文件，但确保在 `.gitignore` 中
-4. **定期轮换**: 定期生成新的私钥
-5. **权限最小化**: 只给必要的最小权限
+## Troubleshooting
 
-### ❌ 绝对不要做
-1. **提交到Git**: 即使是私有仓库也不要提交私钥
-2. **硬编码**: 不要直接写在代码中
-3. **明文存储**: 不要以明文形式存储在任何地方
-4. **共享**: 不要通过聊天工具、邮件等方式分享私钥
-5. **日志输出**: 不要在日志中打印私钥内容
+### Common Production Issues
 
-## 故障排除
+**1. Webhook Not Receiving Events**
+- Check webhook URL accessibility
+- Verify webhook secret matches
+- Check GitHub App event subscriptions
 
-### 常见问题：
-1. **私钥格式错误**: 确保包含完整的BEGIN和END行
-2. **换行符问题**: 在环境变量中使用 `\n` 替换实际换行符
-3. **权限错误**: 确认GitHub App权限设置正确
+**2. GitHub API Rate Limits**
+- Implement exponential backoff
+- Use conditional requests
+- Cache responses when possible
 
-### 调试方法：
-1. 查看Vercel函数日志
-2. 检查GitHub App Webhook日志
-3. 使用环境变量验证私钥是否正确读取
+**3. Private Key Issues**
+- Ensure proper key format in environment variables
+- Check for newline characters (`\n`)
+- Verify key permissions
 
-## 安全注意事项
-- ⚠️ **绝不要**提交私钥文件到Git
-- ⚠️ **绝不要**在代码中硬编码私钥
-- ⚠️ **定期轮换**私钥和其他密钥
-- ⚠️ **监控访问**定期检查GitHub App的使用情况
-- ⚠️ **限制权限**只授予必要的最小权限 
+### Debug Commands
+
+```bash
+# Check deployment status
+vercel ls
+
+# View deployment logs
+vercel logs your-deployment-url.vercel.app
+
+# Test webhook endpoint
+curl -X POST https://your-domain.com/api/github/webhooks \
+  -H "Content-Type: application/json" \
+  -d '{"test": true}'
+```
+
+---
+
+## Performance Optimization
+
+### 1. Cold Start Mitigation
+- Keep functions warm with scheduled requests
+- Minimize bundle size
+- Use efficient imports
+
+### 2. Caching Strategy
+```typescript
+// Cache GitHub API responses
+const cache = new Map();
+
+async function getCachedData(key: string, fetcher: () => Promise<any>) {
+  if (cache.has(key)) {
+    return cache.get(key);
+  }
+  
+  const data = await fetcher();
+  cache.set(key, data);
+  return data;
+}
+```
+
+### 3. Bundle Optimization
+- Use tree shaking
+- Minimize dependencies
+- Implement code splitting
+
+---
+
+## Maintenance
+
+### Regular Tasks
+- **Weekly**: Review error logs and performance metrics
+- **Monthly**: Update dependencies and security patches
+- **Quarterly**: Review and rotate secrets
+- **Annually**: Review GitHub App permissions and configuration
+
+### Update Process
+1. Test changes in staging environment
+2. Deploy to production during low-traffic periods
+3. Monitor for errors post-deployment
+4. Have rollback plan ready
+
+---
+
+*Deployment Guide Version: v1.0*  
+*Last Updated: January 15, 2025* 
