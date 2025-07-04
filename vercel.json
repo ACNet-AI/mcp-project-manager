@@ -1,27 +1,49 @@
 {
   "name": "mcp-project-manager",
   "version": 2,
-  "builds": [
-    {
-      "src": "lib/index.js",
-      "use": "@vercel/node",
-      "config": {
-        "includeFiles": ["app.yml"]
-      }
+  "buildCommand": "npm run build",
+  "functions": {
+    "lib/index.js": {
+      "maxDuration": 30,
+      "memory": 1024
     }
-  ],
+  },
   "routes": [
+    {
+      "src": "/api/(.*)",
+      "dest": "lib/index.js"
+    },
+    {
+      "src": "/webhooks/(.*)",
+      "dest": "lib/index.js"
+    },
     {
       "src": "/(.*)",
       "dest": "lib/index.js"
     }
   ],
   "env": {
-    "NODE_ENV": "production"
+    "NODE_ENV": "production",
+    "LOG_LEVEL": "info",
+    "LOG_FORMAT": "json"
   },
-  "functions": {
-    "lib/index.js": {
-      "maxDuration": 30
+  "headers": [
+    {
+      "source": "/api/(.*)",
+      "headers": [
+        {
+          "key": "Access-Control-Allow-Origin",
+          "value": "*"
+        },
+        {
+          "key": "Access-Control-Allow-Methods",
+          "value": "GET, POST, PUT, DELETE, OPTIONS"
+        },
+        {
+          "key": "Access-Control-Allow-Headers",
+          "value": "Content-Type, Authorization"
+        }
+      ]
     }
-  }
-} 
+  ]
+}
