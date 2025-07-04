@@ -37,7 +37,9 @@ export async function validateProject(
       errors.push("Missing README.md file");
     }
   } catch (error) {
-    errors.push(`Validation process error: ${error instanceof Error ? error.message : String(error)}`);
+    errors.push(
+      `Validation process error: ${error instanceof Error ? error.message : String(error)}`
+    );
   }
 
   return {

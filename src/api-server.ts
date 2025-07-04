@@ -139,12 +139,13 @@ export class ApiServer {
     this.app.get("/api/info", (_req: Request, res: Response) => {
       res.status(200).json({
         name: "MCP Project Manager",
-        description: "🤖 Automated MCP server project creation, publishing and registration management",
+        description:
+          "🤖 Automated MCP server project creation, publishing and registration management",
         features: [
-            "One-click GitHub repository creation",
-            "Automatic project code push",
-            "Intelligent project validation",
-            "Automatic registration to MCP server hub",
+          "One-click GitHub repository creation",
+          "Automatic project code push",
+          "Intelligent project validation",
+          "Automatic registration to MCP server hub",
         ],
         permissions: {
           repository: ["contents:write", "issues:write", "pull_requests:write", "metadata:read"],
