@@ -9,6 +9,20 @@ const app = express();
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 
+// Debug endpoint to check environment variables
+app.get('/api/debug/env', (req, res) => {
+  res.status(200).json({
+    hasGitHubAppId: !!process.env.GITHUB_APP_ID,
+    hasPrivateKey: !!process.env.GITHUB_PRIVATE_KEY,
+    hasWebhookSecret: !!process.env.GITHUB_WEBHOOK_SECRET,
+    hasClientId: !!process.env.GITHUB_CLIENT_ID,
+    hasClientSecret: !!process.env.GITHUB_CLIENT_SECRET,
+    appId: process.env.GITHUB_APP_ID ? 'Set' : 'Missing',
+    privateKeyLength: process.env.GITHUB_PRIVATE_KEY ? process.env.GITHUB_PRIVATE_KEY.length : 0,
+    timestamp: new Date().toISOString()
+  });
+});
+
 let apiServer;
 
 try {
