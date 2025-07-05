@@ -32,17 +32,16 @@ try {
   // Try to initialize Probot only if environment variables are available
   if (process.env.GITHUB_APP_ID && process.env.GITHUB_PRIVATE_KEY && process.env.GITHUB_WEBHOOK_SECRET) {
     console.log('🔧 Initializing Probot for webhook handling...');
+    console.log('App ID:', process.env.GITHUB_APP_ID);
     
     const { createProbot } = require('probot');
     const probotAppModule = require('../lib/index.js');
     
     // Create Probot instance with proper error handling
     const probot = createProbot({
-      defaults: {
-        appId: process.env.GITHUB_APP_ID,
-        privateKey: process.env.GITHUB_PRIVATE_KEY.replace(/\\n/g, '\n'),
-        secret: process.env.GITHUB_WEBHOOK_SECRET,
-      }
+      appId: process.env.GITHUB_APP_ID,
+      privateKey: process.env.GITHUB_PRIVATE_KEY.replace(/\\n/g, '\n'),
+      secret: process.env.GITHUB_WEBHOOK_SECRET,
     });
     
     // Load the Probot app
