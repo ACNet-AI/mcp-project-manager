@@ -10,7 +10,6 @@ app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 
 let apiServer;
-let probotApp;
 
 try {
   // Create API server instance
