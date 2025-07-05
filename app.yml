@@ -71,7 +71,7 @@ default_user_permissions:
 name: "MCP Project Manager"
 url: "https://github.com/ACNet-AI/mcp-project-manager"
 hook_attributes:
-  url: "https://mcp-project-manager-1234.vercel.app/webhooks/github"
+  url: "https://mcp-project-manager-1234.vercel.app/api/github/webhooks"
 redirect_url: "https://mcp-project-manager-1234.vercel.app/api/auth/callback"
 callback_urls:
   - "https://mcp-project-manager-1234.vercel.app/api/auth/callback"
