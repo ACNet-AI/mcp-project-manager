@@ -69,12 +69,12 @@ default_user_permissions:
 
 # App basic information
 name: "MCP Project Manager"
-url: "https://github.com/guyue/mcp-project-manager"
+url: "https://github.com/ACNet-AI/mcp-project-manager"
 hook_attributes:
-  url: "https://your-domain.com/api/webhook"
-redirect_url: "https://your-domain.com/api/auth/callback"
+  url: "https://mcp-project-manager-1234.vercel.app/webhooks/github"
+redirect_url: "https://mcp-project-manager-1234.vercel.app/api/auth/callback"
 callback_urls:
-  - "https://your-domain.com/api/auth/callback"
+  - "https://mcp-project-manager-1234.vercel.app/api/auth/callback"
 description: |
   🤖 Automated project management center for MCP ecosystem
   

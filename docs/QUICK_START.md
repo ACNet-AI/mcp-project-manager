@@ -9,7 +9,7 @@ Visit [MCP Project Manager](https://github.com/apps/mcp-project-manager) and ins
 
 ### 2. Publish Your First Project
 ```bash
-curl -X POST https://mcp-project-manager.vercel.app/api/publish \
+curl -X POST https://mcp-project-manager-1234.vercel.app/api/publish \
   -H "Content-Type: application/json" \
   -d '{
     "projectName": "my-first-mcp-server",
@@ -114,7 +114,7 @@ In Vercel Dashboard, add:
 - `NODE_ENV=production`
 
 ### 3. Update GitHub App Webhook
-Update your GitHub App webhook URL to: `https://your-domain.vercel.app/api/github/webhooks`
+Update your GitHub App webhook URL to: `https://mcp-project-manager-1234.vercel.app/webhooks/github`
 
 ---
 

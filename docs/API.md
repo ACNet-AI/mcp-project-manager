@@ -6,7 +6,7 @@ RESTful API for automated MCP project publishing and management.
 
 ## Base Information
 
-- **Base URL**: `https://your-domain.vercel.app/api`
+- **Base URL**: `https://mcp-project-manager-1234.vercel.app/api`
 - **Content-Type**: `application/json`
 - **Authentication**: GitHub App installation token (automatic)
 
@@ -128,7 +128,7 @@ POST /api/publish
 import requests
 
 def publish_project():
-    url = "https://your-domain.vercel.app/api/publish"
+    url = "https://mcp-project-manager-1234.vercel.app/api/publish"
     payload = {
         "projectName": "my-mcp-server",
         "description": "My awesome MCP server",

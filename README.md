@@ -41,7 +41,7 @@ npm run dev
 ## API Example
 
 ```bash
-curl -X POST https://your-domain.vercel.app/api/publish \
+curl -X POST https://mcp-project-manager-1234.vercel.app/api/publish \
   -H "Content-Type: application/json" \
   -d '{
     "projectName": "my-mcp-server",
