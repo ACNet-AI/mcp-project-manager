@@ -37,7 +37,6 @@ try {
     console.log('Webhook Secret set:', !!process.env.GITHUB_WEBHOOK_SECRET);
     
     const { createProbot } = require('probot');
-    const probotAppModule = require('../lib/index.js');
     
     // Set environment variables for Probot (it reads them automatically)
     process.env.APP_ID = process.env.GITHUB_APP_ID;
@@ -47,8 +46,19 @@ try {
     // Create Probot instance - it will read env vars automatically
     const probot = createProbot();
     
-    // Load the Probot app
-    probot.load(probotAppModule);
+    // Load the Probot app with error handling
+    try {
+      const probotAppModule = require('../lib/index.js');
+      if (typeof probotAppModule === 'function') {
+        probot.load(probotAppModule);
+        console.log('✅ Probot app loaded successfully');
+      } else {
+        throw new Error('Probot app module is not a function');
+      }
+    } catch (loadError) {
+      console.error('❌ Failed to load Probot app:', loadError);
+      throw loadError;
+    }
     
     // Set Probot instance for API server
     apiServer.setProbotInstance(probot);
