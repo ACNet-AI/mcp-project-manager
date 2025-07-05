@@ -40,7 +40,6 @@
     "typecheck": "tsc --noEmit",
     "clean": "rimraf lib",
     "prebuild": "npm run clean",
-    "prepare": "npm run build",
     "verify": "npm run typecheck && npm run lint && npm run format:check && npm run test:coverage"
   },
   "dependencies": {

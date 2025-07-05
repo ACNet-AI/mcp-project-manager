@@ -1,10 +1,8 @@
-# Source files (only built files needed)
-src/
+# Source files (only built files needed during build)
 test/
 coverage/
 
 # Development files
-tsconfig.json
 jest.config.*
 .eslintrc.*
 .prettierrc.*
@@ -18,9 +16,6 @@ README.md
 .git/
 .gitignore
 
-# Node modules (handled by Vercel)
-node_modules/
-
 # Build artifacts that shouldn't be uploaded
 *.log
 *.tgz
@@ -33,5 +28,8 @@ node_modules/
 # Security files
 *.pem
 
-# Keep essential files
-!app.yml 
+# Keep essential files for build
+!app.yml
+!tsconfig.json
+!package.json
+!package-lock.json 
