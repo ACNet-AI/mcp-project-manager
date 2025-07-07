@@ -1,5 +1,5 @@
 import { VercelRequest, VercelResponse } from '@vercel/node';
-import { extractProjectInfo, validateRegistrationData } from '../lib/src/utils/registry.js';
+import { extractProjectInfo, validateRegistrationData } from '../src/utils/registry.js';
 
 /**
  * Vercel API function for external project publishing
