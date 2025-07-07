@@ -13,13 +13,12 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   }
 
   try {
-    // Parse request body manually if needed
-    let publishRequest;
-    if (typeof req.body === 'string') {
-      publishRequest = JSON.parse(req.body);
-    } else if (req.body) {
-      publishRequest = req.body;
-    } else {
+    const publishRequest = req.body;
+
+    // Debug log
+    console.log('Request body:', publishRequest);
+    
+    if (!publishRequest) {
       res.statusCode = 400;
       res.setHeader('Content-Type', 'application/json');
       return res.end(JSON.stringify({ error: "Request body is required" }));
@@ -35,6 +34,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       res.setHeader('Content-Type', 'application/json');
       return res.end(JSON.stringify({
         error: "Missing required fields: projectName, files, language",
+        received: Object.keys(publishRequest || {})
       }));
     }
 
