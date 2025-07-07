@@ -10,27 +10,40 @@ module.exports = async function handler(req, res) {
   }
 
   try {
-    const publishRequest = req.body;
+    let publishRequest;
 
-    // Debug log
-    console.log('Request body:', publishRequest);
-    console.log('Request method:', req.method);
-    console.log('Content-Type:', req.headers['content-type']);
+    // Read request body manually
+    if (!req.body) {
+      // For Vercel functions, we need to read the raw stream
+      const chunks = [];
+      for await (const chunk of req) {
+        chunks.push(chunk);
+      }
+      const rawBody = Buffer.concat(chunks).toString();
+      console.log('Raw body:', rawBody);
+      
+      if (rawBody) {
+        try {
+          publishRequest = JSON.parse(rawBody);
+        } catch (parseError) {
+          res.statusCode = 400;
+          res.setHeader('Content-Type', 'application/json');
+          return res.end(JSON.stringify({ error: "Invalid JSON" }));
+        }
+      }
+    } else {
+      publishRequest = req.body;
+    }
+
+    console.log('Parsed request:', publishRequest);
     
     if (!publishRequest) {
       res.statusCode = 400;
       res.setHeader('Content-Type', 'application/json');
-      return res.end(JSON.stringify({ 
-        error: "Request body is required",
-        debug: {
-          bodyType: typeof publishRequest,
-          body: publishRequest,
-          headers: req.headers
-        }
-      }));
+      return res.end(JSON.stringify({ error: "Request body is required" }));
     }
 
-    // For now, just return a success message to test if body parsing works
+    // Test response with the received data
     res.statusCode = 200;
     res.setHeader('Content-Type', 'application/json');
     return res.end(JSON.stringify({
