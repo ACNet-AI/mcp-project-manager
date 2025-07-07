@@ -1,0 +1,58 @@
+{
+  "name": "mcp-project-manager",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Automated GitHub App for MCP server project management and publishing",
+  "author": "ACNet-AI",
+  "license": "MIT",
+  "homepage": "https://github.com/ACNet-AI/mcp-project-manager",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/ACNet-AI/mcp-project-manager.git"
+  },
+  "keywords": [
+    "mcp",
+    "probot",
+    "github",
+    "automation",
+    "project-management"
+  ],
+  "scripts": {
+    "build": "tsc",
+    "vercel-build": "npm run build",
+    "start": "probot run ./lib/src/index.js",
+    "dev": "tsc && npm start",
+    "test": "vitest",
+    "test:coverage": "vitest --coverage",
+    "test:watch": "vitest --watch",
+    "type-check": "tsc --noEmit",
+    "lint": "eslint . --ext .ts --fix",
+    "lint:check": "eslint . --ext .ts",
+    "format": "prettier --write \"src/**/*.{ts,js,json}\" \"test/**/*.{ts,js}\" \"api/**/*.{ts,js}\"",
+    "format:check": "prettier --check \"src/**/*.{ts,js,json}\" \"test/**/*.{ts,js}\" \"api/**/*.{ts,js}\"",
+    "clean": "rm -rf lib coverage"
+  },
+  "dependencies": {
+    "probot": "^13.4.5",
+    "@vercel/node": "^5.3.3"
+  },
+  "devDependencies": {
+    "@types/node": "^20.0.0",
+    "@typescript-eslint/eslint-plugin": "^6.0.0",
+    "@typescript-eslint/parser": "^6.0.0",
+    "@vitest/coverage-v8": "^2.1.9",
+    "eslint": "^8.50.0",
+    "nock": "^14.0.5",
+    "node-mocks-http": "^1.17.2",
+    "prettier": "^3.0.0",
+    "smee-client": "^2.0.0",
+    "typescript": "^5.8.3",
+    "vitest": "^2.0.0"
+  },
+  "overrides": {
+    "@types/pg": "8.15.1"
+  },
+  "engines": {
+    "node": ">= 18"
+  }
+}

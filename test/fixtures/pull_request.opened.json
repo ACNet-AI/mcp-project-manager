@@ -1,0 +1,43 @@
+{
+  "action": "opened",
+  "number": 1,
+  "pull_request": {
+    "id": 1,
+    "number": 1,
+    "title": "Add MCP server configuration",
+    "body": "This PR adds MCP server configuration and implementation details.",
+    "head": {
+      "sha": "abc123",
+      "ref": "feature/mcp-server"
+    },
+    "base": {
+      "ref": "main"
+    },
+    "state": "open",
+    "html_url": "https://github.com/hiimbex/testing-things/pull/1",
+    "user": {
+      "login": "hiimbex",
+      "id": 1
+    }
+  },
+  "repository": {
+    "id": 1,
+    "name": "testing-things",
+    "full_name": "hiimbex/testing-things",
+    "owner": {
+      "login": "hiimbex",
+      "id": 1
+    },
+    "private": false,
+    "html_url": "https://github.com/hiimbex/testing-things",
+    "description": "A test MCP server repository",
+    "default_branch": "main"
+  },
+  "installation": {
+    "id": 2
+  },
+  "sender": {
+    "login": "hiimbex",
+    "id": 1
+  }
+} 

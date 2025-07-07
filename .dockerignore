@@ -1,0 +1,54 @@
+# Node modules and package locks (will be installed in container)
+**/node_modules/
+
+# Git
+**/.git
+**/.gitignore
+
+# Documentation
+**/README.md
+**/LICENSE
+**/CONTRIBUTING.md
+**/CODE_OF_CONDUCT.md
+
+# Editor and IDE
+**/.vscode
+**/.idea
+
+# Logs
+**/npm-debug.log*
+**/logs/
+**/*.log
+
+# Test coverage
+**/coverage/
+
+# Environment files
+**/.env
+**/.env.*
+
+# Build output (will be built in container)
+**/lib/
+**/dist/
+
+# Editor config
+**/.editorconfig
+
+# Certificates
+**/*.pem
+
+# Dockerfile itself
+Dockerfile
+.dockerignore
+
+# Test files
+**/test/
+**/*.test.*
+**/*.spec.*
+
+# macOS
+**/.DS_Store
+
+# Temporary files
+**/tmp/
+**/temp/

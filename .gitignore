@@ -1,0 +1,50 @@
+# Dependencies
+node_modules/
+npm-debug.log*
+
+# Build output
+lib/
+dist/
+
+# Test coverage
+coverage/
+
+# Environment variables
+.env
+.env.*
+!.env.example
+
+# Logs
+*.log
+logs/
+
+# Runtime data
+pids/
+*.pid
+*.seed
+*.pid.lock
+
+# Certificates (except test mocks)
+*.pem
+!mock-cert.pem
+!test/fixtures/*.pem
+
+# macOS
+.DS_Store
+.AppleDouble
+.LSOverride
+
+# Editor directories and files
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# TypeScript build info
+*.tsbuildinfo
+
+# Temporary files
+tmp/
+temp/
+.vercel

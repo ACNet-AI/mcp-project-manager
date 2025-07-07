@@ -1,0 +1,27 @@
+{
+  "action": "opened",
+  "issue": {
+    "number": 1,
+    "title": "Help with MCP server setup",
+    "body": "I need help setting up my MCP server project",
+    "labels": [
+      {
+        "id": 1,
+        "name": "mcp-server",
+        "color": "blue"
+      }
+    ],
+    "user": {
+      "login": "hiimbex"
+    }
+  },
+  "repository": {
+    "name": "testing-things",
+    "owner": {
+      "login": "hiimbex"
+    }
+  },
+  "installation": {
+    "id": 2
+  }
+}

@@ -1,0 +1,38 @@
+{
+  "ref": "refs/heads/main",
+  "before": "abc123",
+  "after": "def456",
+  "commits": [
+    {
+      "id": "def456",
+      "message": "Add MCP server implementation",
+      "author": {
+        "name": "Test User",
+        "email": "test@example.com"
+      },
+      "added": ["src/index.ts", "package.json"],
+      "modified": ["README.md"],
+      "removed": []
+    }
+  ],
+  "repository": {
+    "id": 1,
+    "name": "testing-things",
+    "full_name": "hiimbex/testing-things",
+    "owner": {
+      "login": "hiimbex",
+      "id": 1
+    },
+    "private": false,
+    "html_url": "https://github.com/hiimbex/testing-things",
+    "description": "A test MCP server repository",
+    "default_branch": "main"
+  },
+  "installation": {
+    "id": 2
+  },
+  "sender": {
+    "login": "hiimbex",
+    "id": 1
+  }
+} 

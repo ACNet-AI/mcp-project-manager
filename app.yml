@@ -1,0 +1,92 @@
+# This is a GitHub App Manifest. These settings will be used by default when
+# initially configuring your GitHub App.
+#
+# NOTE: changing this file will not update your GitHub App settings.
+# You must visit github.com/settings/apps/your-app-name to edit them.
+#
+# Read more about configuring your GitHub App:
+# https://probot.github.io/docs/development/#configuring-a-github-app
+#
+# Read more about GitHub App Manifests:
+# https://developer.github.com/apps/building-github-apps/creating-github-apps-from-a-manifest/
+
+# MCP Project Manager - GitHub App Configuration Manifest
+# For automated management of MCP server project registration, validation and publishing
+
+# List of subscribed GitHub events
+default_events:
+  # Repository core events
+  - repository                 # Repository creation, settings changes
+  - push                       # Code push: trigger validation and registration
+  
+  # Collaboration and feedback events
+  - issues                     # Issue creation: project validation feedback
+  - issue_comment              # Issue comments: detailed feedback and discussion
+  - pull_request               # PR events: code review and validation
+  - pull_request_review        # PR review: quality control feedback
+  
+  # Release and status events
+  - release                    # Release publishing: version management
+  - check_run                  # Check runs: real-time quality feedback
+  - status                     # Commit status: CI/CD result feedback
+  
+  # Installation events
+  - installation               # App installation/uninstallation
+
+# ⭐ Key configuration: enable user authorization flow
+request_oauth_on_install: true
+
+# Device flow support (for CLI tools, etc.)
+enable_device_flow: true
+
+# Repository-level permissions
+default_permissions:
+  # ⭐ Core permission: create and manage repositories
+  administration: write
+  
+  # ⭐ Core permission: code management
+  contents: write
+  
+  # ⭐ Core permission: repository information reading
+  metadata: read
+
+  # ⭐ Core permission: project validation feedback
+  issues: write
+  
+  # ⭐ Core permission: PR validation and auto-merge
+  pull_requests: write
+  
+  # 🔧 Production required: CI/CD status feedback
+  statuses: write
+  
+  # 🔧 Production required: project quality checks
+  checks: write
+
+# User-level permissions (required for User Authorization)
+default_user_permissions:
+  # User basic information (required for repository creation)
+  profile: read
+
+  # 🔧 Production required: correct committer information
+  email_addresses: read
+
+# App basic information
+name: "MCP Project Manager"
+description: |
+  🤖 Automated project management center for MCP ecosystem
+  
+  Core features:
+  • Create GitHub repositories (personal/organization)
+  • Push project code files
+  • Project structure validation and quality checks
+  • Auto-register to MCP server hub
+  • Real-time status feedback and user experience
+
+# Public application, supports community installation
+public: true
+
+# Support multiple installation methods
+installation_type: account_and_repository
+
+# Webhook configuration
+webhook_active: true
