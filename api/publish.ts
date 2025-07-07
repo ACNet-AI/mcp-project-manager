@@ -1,5 +1,5 @@
 import { VercelRequest, VercelResponse } from '@vercel/node';
-import { extractProjectInfo, validateRegistrationData } from '../src/utils/registry';
+import { extractProjectInfo, validateRegistrationData } from '../lib/src/utils/registry.js';
 
 /**
  * Vercel API function for external project publishing
@@ -13,7 +13,17 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   }
 
   try {
-    const publishRequest = req.body;
+    // Parse request body manually if needed
+    let publishRequest;
+    if (typeof req.body === 'string') {
+      publishRequest = JSON.parse(req.body);
+    } else if (req.body) {
+      publishRequest = req.body;
+    } else {
+      res.statusCode = 400;
+      res.setHeader('Content-Type', 'application/json');
+      return res.end(JSON.stringify({ error: "Request body is required" }));
+    }
 
     // Validate request data
     if (
