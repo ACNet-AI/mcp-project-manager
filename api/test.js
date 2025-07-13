@@ -16,9 +16,10 @@ module.exports = async function handler(req, res) {
     message: "MCP Project Manager API is working",
     timestamp: new Date().toISOString(),
     endpoints: [
+      "GET /api/health - Health check endpoint for monitoring",
+      "GET /api/test - Test endpoint with detailed information",
       "POST /api/publish - Submit MCP project for registration",
-      "POST /api/github/webhooks - GitHub Webhook endpoint",
-      "GET /api/test - Test endpoint"
+      "POST /api/github/webhooks - GitHub Webhook endpoint"
     ]
   }));
 } 
