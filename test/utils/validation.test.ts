@@ -1,7 +1,11 @@
 import { describe, test, expect, beforeEach, vi } from "vitest";
-import { validateProject, detectMCPProject } from "../../src/utils/validation";
+import {
+  validateProject,
+  detectMCPProject,
+  detectProjectConfig,
+} from "../../src/utils/validation";
 import type { Context } from "probot";
-import type { PackageJsonType } from "../../src/utils/types";
+import type { ProjectConfig } from "../../src/utils/types";
 
 // Mock context helper
 function createMockContext() {
@@ -36,242 +40,332 @@ describe("Validation Functions", () => {
   });
 
   describe("detectMCPProject", () => {
-    test("should detect MCP project by package.json dependencies", () => {
-      const packageJson: PackageJsonType = {
+    test("should detect MCP project by Node.js dependencies", () => {
+      const projectConfig: ProjectConfig = {
+        type: "nodejs",
         name: "test-mcp-server",
         description: "A test MCP server",
-        dependencies: {
-          "@modelcontextprotocol/sdk": "^1.0.0",
-        },
+        dependencies: ["@modelcontextprotocol/sdk"],
+        source: "package.json",
       };
 
-      const result = detectMCPProject(packageJson, []);
+      const result = detectMCPProject(projectConfig, []);
 
       expect(result.isMCPProject).toBe(true);
       expect(result.reasons).toContain("Has MCP SDK dependency");
     });
 
-    test("should detect MCP project by devDependencies", () => {
-      const packageJson: PackageJsonType = {
+    test("should detect MCP project by Python dependencies", () => {
+      const projectConfig: ProjectConfig = {
+        type: "python",
         name: "test-mcp-server",
         description: "A test MCP server",
-        devDependencies: {
-          "@modelcontextprotocol/sdk": "^1.0.0",
-        },
+        dependencies: ["mcp-core", "fastapi"],
+        source: "pyproject.toml",
       };
 
-      const result = detectMCPProject(packageJson, []);
+      const result = detectMCPProject(projectConfig, []);
 
       expect(result.isMCPProject).toBe(true);
-      expect(result.reasons).toContain("Has MCP SDK dependency");
+      expect(result.reasons).toContain("Has MCP or FastAPI dependency");
     });
 
     test("should detect MCP project by keywords", () => {
-      const packageJson: PackageJsonType = {
+      const projectConfig: ProjectConfig = {
+        type: "nodejs",
         name: "test-server",
         description: "A test server",
         keywords: ["mcp", "server"],
+        source: "package.json",
       };
 
-      const result = detectMCPProject(packageJson, []);
+      const result = detectMCPProject(projectConfig, []);
 
       expect(result.isMCPProject).toBe(true);
       expect(result.reasons).toContain("Has MCP-related keywords");
     });
 
     test("should detect MCP project by description", () => {
-      const packageJson: PackageJsonType = {
+      const projectConfig: ProjectConfig = {
+        type: "nodejs",
         name: "test-server",
         description: "An MCP server implementation",
+        source: "package.json",
       };
 
-      const result = detectMCPProject(packageJson, []);
+      const result = detectMCPProject(projectConfig, []);
 
-      expect(result.isMCPProject).toBe(false);
-      expect(result.reasons).not.toContain("MCP keywords in description");
+      expect(result.isMCPProject).toBe(true);
+      expect(result.reasons).toContain("MCP keywords in description");
     });
 
     test("should detect MCP project by name", () => {
-      const packageJson: PackageJsonType = {
+      const projectConfig: ProjectConfig = {
+        type: "nodejs",
         name: "my-mcp-server",
         description: "A test server",
+        source: "package.json",
       };
 
-      const result = detectMCPProject(packageJson, []);
+      const result = detectMCPProject(projectConfig, []);
 
       expect(result.isMCPProject).toBe(true);
-      expect(result.reasons).toContain("Package name contains 'mcp'");
+      expect(result.reasons).toContain("MCP keywords in name");
     });
 
-    test("should not detect non-MCP project", () => {
-      const packageJson: PackageJsonType = {
-        name: "regular-server",
-        description: "A regular server",
+    test("should detect MCP project by Python file structure", () => {
+      const projectConfig: ProjectConfig = {
+        type: "python",
+        name: "test-server",
+        description: "A test server",
+        source: "pyproject.toml",
       };
 
-      const result = detectMCPProject(packageJson, []);
+      const result = detectMCPProject(projectConfig, [
+        "src/mcp_server.py",
+        "pyproject.toml",
+      ]);
+
+      expect(result.isMCPProject).toBe(true);
+      expect(result.reasons).toContain("Has MCP-related files");
+    });
+
+    test("should detect MCP project by Node.js file structure", () => {
+      const projectConfig: ProjectConfig = {
+        type: "nodejs",
+        name: "test-server",
+        description: "A test server",
+        source: "package.json",
+      };
+
+      const result = detectMCPProject(projectConfig, [
+        "src/server.ts",
+        "mcp.config.js",
+      ]);
+
+      expect(result.isMCPProject).toBe(true);
+      expect(result.reasons).toContain("Has MCP-related files");
+    });
+
+    test("should not detect MCP project without indicators", () => {
+      const projectConfig: ProjectConfig = {
+        type: "nodejs",
+        name: "test-server",
+        description: "A regular server",
+        dependencies: ["express"],
+        source: "package.json",
+      };
+
+      const result = detectMCPProject(projectConfig, ["src/server.ts"]);
 
       expect(result.isMCPProject).toBe(false);
       expect(result.reasons).toHaveLength(0);
     });
+  });
 
-    test("should handle null package.json", () => {
-      const result = detectMCPProject(null, []);
+  describe("detectProjectConfig", () => {
+    test("should detect Python project from pyproject.toml", async () => {
+      const { context, mockGetContent } = createMockContext();
 
-      expect(result.isMCPProject).toBe(false);
-      expect(result.reasons).toContain("No package.json found");
+      mockGetContent.mockResolvedValueOnce({
+        data: {
+          content: Buffer.from(
+            `
+[project]
+name = "test-mcp-server"
+version = "1.0.0"
+description = "A test MCP server"
+keywords = ["mcp", "server"]
+dependencies = ["fastapi", "uvicorn"]
+          `
+          ).toString("base64"),
+          encoding: "base64",
+        },
+      });
+
+      const result = await detectProjectConfig(context);
+
+      expect(result).toBeDefined();
+      expect(result?.type).toBe("python");
+      expect(result?.name).toBe("test-mcp-server");
+      expect(result?.version).toBe("1.0.0");
+      expect(result?.description).toBe("A test MCP server");
+      expect(result?.keywords).toEqual(["mcp", "server"]);
+      expect(result?.dependencies).toEqual(["fastapi", "uvicorn"]);
+      expect(result?.source).toBe("pyproject.toml");
+    });
+
+    test("should detect Node.js project from package.json", async () => {
+      const { context, mockGetContent } = createMockContext();
+
+      // First call fails (no pyproject.toml)
+      mockGetContent.mockRejectedValueOnce(new Error("Not found"));
+
+      // Second call fails (no setup.py)
+      mockGetContent.mockRejectedValueOnce(new Error("Not found"));
+
+      // Third call succeeds (package.json)
+      mockGetContent.mockResolvedValueOnce({
+        data: {
+          content: Buffer.from(
+            JSON.stringify({
+              name: "test-mcp-server",
+              version: "1.0.0",
+              description: "A test MCP server",
+              keywords: ["mcp", "server"],
+              dependencies: {
+                "@modelcontextprotocol/sdk": "^1.0.0",
+                typescript: "^5.0.0",
+              },
+            })
+          ).toString("base64"),
+          encoding: "base64",
+        },
+      });
+
+      const result = await detectProjectConfig(context);
+
+      expect(result).toBeDefined();
+      expect(result?.type).toBe("nodejs");
+      expect(result?.name).toBe("test-mcp-server");
+      expect(result?.version).toBe("1.0.0");
+      expect(result?.description).toBe("A test MCP server");
+      expect(result?.keywords).toEqual(["mcp", "server"]);
+      expect(result?.dependencies).toEqual([
+        "@modelcontextprotocol/sdk",
+        "typescript",
+      ]);
+      expect(result?.source).toBe("package.json");
+    });
+
+    test("should return null when no project config found", async () => {
+      const { context, mockGetContent } = createMockContext();
+
+      // All calls fail
+      mockGetContent.mockRejectedValue(new Error("Not found"));
+
+      const result = await detectProjectConfig(context);
+
+      expect(result).toBeNull();
     });
   });
 
   describe("validateProject", () => {
-    test("should validate project with all required files", async () => {
+    test("should validate valid Python project", async () => {
       const { context, mockGetContent } = createMockContext();
 
-      // Mock package.json content
-      const packageJsonContent = JSON.stringify({
-        name: "test-project",
-        description: "A test project",
-        main: "index.js",
+      mockGetContent.mockResolvedValueOnce({
+        data: {
+          content: Buffer.from(
+            `
+[project]
+name = "test-mcp-server"
+version = "1.0.0"
+description = "A test MCP server"
+keywords = ["mcp", "server"]
+dependencies = ["fastapi", "uvicorn"]
+          `
+          ).toString("base64"),
+          encoding: "base64",
+        },
       });
 
-      // Mock README content
-      const readmeContent = "# Test Project\n\nThis is a test project.";
-
-      mockGetContent
-        .mockResolvedValueOnce({
-          data: { content: Buffer.from(packageJsonContent).toString("base64") },
-        })
-        .mockResolvedValueOnce({
-          data: { content: Buffer.from(readmeContent).toString("base64") },
-        });
-
-      const result = await validateProject(context, "src");
+      const result = await validateProject(context);
 
       expect(result.isValid).toBe(true);
       expect(result.errors).toHaveLength(0);
-      expect(mockGetContent).toHaveBeenCalledTimes(2);
+      expect(result.warnings).toHaveLength(0);
     });
 
-    test("should validate project with sha parameter", async () => {
+    test("should validate valid Node.js project", async () => {
       const { context, mockGetContent } = createMockContext();
 
-      const packageJsonContent = JSON.stringify({
-        name: "test-project",
-        description: "A test project",
-        exports: "./dist/index.js",
+      // First call fails (no pyproject.toml)
+      mockGetContent.mockRejectedValueOnce(new Error("Not found"));
+
+      // Second call fails (no setup.py)
+      mockGetContent.mockRejectedValueOnce(new Error("Not found"));
+
+      // Third call succeeds (package.json)
+      mockGetContent.mockResolvedValueOnce({
+        data: {
+          content: Buffer.from(
+            JSON.stringify({
+              name: "test-mcp-server",
+              version: "1.0.0",
+              description: "A test MCP server",
+              keywords: ["mcp", "server"],
+              dependencies: {
+                "@modelcontextprotocol/sdk": "^1.0.0",
+              },
+            })
+          ).toString("base64"),
+          encoding: "base64",
+        },
       });
 
-      mockGetContent
-        .mockResolvedValueOnce({
-          data: { content: Buffer.from(packageJsonContent).toString("base64") },
-        })
-        .mockResolvedValueOnce({
-          data: { content: Buffer.from("# README").toString("base64") },
-        });
-
-      const result = await validateProject(context, "src", "abc123");
+      const result = await validateProject(context);
 
       expect(result.isValid).toBe(true);
-      expect(mockGetContent).toHaveBeenCalledWith({
-        owner: "testuser",
-        repo: "test-repo",
-        path: "src/package.json",
-        ref: "abc123",
-      });
+      expect(result.errors).toHaveLength(0);
+      expect(result.warnings).toHaveLength(0);
     });
 
-    test("should fail validation when package.json is missing", async () => {
+    test("should return invalid for missing project config", async () => {
       const { context, mockGetContent } = createMockContext();
 
-      mockGetContent
-        .mockRejectedValueOnce(new Error("Not Found"))
-        .mockResolvedValueOnce({
-          data: { content: Buffer.from("# README").toString("base64") },
-        });
+      // All calls fail
+      mockGetContent.mockRejectedValue(new Error("Not found"));
 
-      const result = await validateProject(context, "src");
+      const result = await validateProject(context);
 
       expect(result.isValid).toBe(false);
-      expect(result.errors).toContain("Missing package.json file");
+      expect(result.errors).toContain("No project configuration found");
     });
 
-    test("should fail validation when package.json has invalid JSON", async () => {
+    test("should return warnings for missing fields", async () => {
       const { context, mockGetContent } = createMockContext();
 
-      const invalidJson = "{ invalid json }";
-
-      mockGetContent
-        .mockResolvedValueOnce({
-          data: { content: Buffer.from(invalidJson).toString("base64") },
-        })
-        .mockResolvedValueOnce({
-          data: { content: Buffer.from("# README").toString("base64") },
-        });
-
-      const result = await validateProject(context, "src");
-
-      expect(result.isValid).toBe(false);
-      expect(result.errors).toContain("package.json format error");
-    });
-
-    test("should fail validation when package.json is missing required fields", async () => {
-      const { context, mockGetContent } = createMockContext();
-
-      const packageJsonContent = JSON.stringify({
-        // Missing name, description, main, and exports
-        version: "1.0.0",
+      mockGetContent.mockResolvedValueOnce({
+        data: {
+          content: Buffer.from(
+            `
+[project]
+name = "test-server"
+          `
+          ).toString("base64"),
+          encoding: "base64",
+        },
       });
 
-      mockGetContent
-        .mockResolvedValueOnce({
-          data: { content: Buffer.from(packageJsonContent).toString("base64") },
-        })
-        .mockResolvedValueOnce({
-          data: { content: Buffer.from("# README").toString("base64") },
-        });
+      const result = await validateProject(context);
 
-      const result = await validateProject(context, "src");
-
-      expect(result.isValid).toBe(false); // Should be invalid since name is missing (error)
-      expect(result.errors).toContain("package.json missing name field");
-      expect(result.warnings).toContain(
-        "package.json missing description field"
-      );
-      expect(result.warnings).toContain(
-        "package.json missing main or exports field"
-      );
+      expect(result.isValid).toBe(true);
+      expect(result.warnings).toContain("Missing description");
+      expect(result.warnings).toContain("Missing version");
+      expect(result.warnings).toContain("Missing keywords");
     });
 
-    test("should fail validation when README.md is missing", async () => {
+    test("should return errors for invalid configuration", async () => {
       const { context, mockGetContent } = createMockContext();
 
-      const packageJsonContent = JSON.stringify({
-        name: "test-project",
-        description: "A test project",
-        main: "index.js",
+      mockGetContent.mockResolvedValueOnce({
+        data: {
+          content: Buffer.from(
+            `
+[project]
+# Invalid TOML content
+name = 
+          `
+          ).toString("base64"),
+          encoding: "base64",
+        },
       });
 
-      mockGetContent
-        .mockResolvedValueOnce({
-          data: { content: Buffer.from(packageJsonContent).toString("base64") },
-        })
-        .mockRejectedValueOnce(new Error("Not Found"));
-
-      const result = await validateProject(context, "src");
-
-      expect(result.isValid).toBe(true); // Should be valid since README is just a warning
-      expect(result.warnings).toContain("Missing README.md file");
-    });
-
-    test("should handle API errors gracefully", async () => {
-      const { context, mockGetContent } = createMockContext();
-
-      mockGetContent.mockRejectedValue(new Error("API Error"));
-
-      const result = await validateProject(context, "src");
+      const result = await validateProject(context);
 
       expect(result.isValid).toBe(false);
-      expect(result.errors.length).toBeGreaterThan(0);
+      expect(result.errors).toContain("Invalid project configuration");
     });
   });
 });

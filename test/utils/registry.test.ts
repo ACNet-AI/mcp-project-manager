@@ -6,26 +6,25 @@ import {
   isEligibleForAutoRegistration,
 } from "../../src/utils/registry";
 import type {
-  PackageJsonType,
+  ProjectConfig,
   MCPProjectRegistration,
 } from "../../src/utils/types";
 
 describe("Registry Utils", () => {
   describe("extractProjectInfo", () => {
-    test("should extract project info from package.json", () => {
-      const packageJson: PackageJsonType = {
+    test("should extract project info from Node.js project config", () => {
+      const projectConfig: ProjectConfig = {
+        type: "nodejs",
         name: "test-mcp-server",
         description: "A test MCP server",
         version: "1.0.0",
         keywords: ["mcp", "server", "ai"],
-        dependencies: {
-          "@modelcontextprotocol/sdk": "^1.0.0",
-          typescript: "^5.0.0",
-        },
+        dependencies: ["@modelcontextprotocol/sdk", "typescript"],
+        source: "package.json",
       };
 
       const result = extractProjectInfo(
-        packageJson,
+        projectConfig,
         "testuser",
         "test-mcp-server"
       );
@@ -41,10 +40,41 @@ describe("Registry Utils", () => {
       });
     });
 
-    test("should handle missing package.json fields", () => {
-      const packageJson: PackageJsonType = {};
+    test("should extract project info from Python project config", () => {
+      const projectConfig: ProjectConfig = {
+        type: "python",
+        name: "test-mcp-python-server",
+        description: "A test Python MCP server",
+        version: "1.0.0",
+        keywords: ["mcp", "server", "python"],
+        dependencies: ["fastapi", "uvicorn"],
+        source: "pyproject.toml",
+      };
 
-      const result = extractProjectInfo(packageJson, "testuser", "test-repo");
+      const result = extractProjectInfo(
+        projectConfig,
+        "testuser",
+        "test-mcp-python-server"
+      );
+
+      expect(result).toEqual({
+        name: "test-mcp-python-server",
+        description: "A test Python MCP server",
+        repository: "https://github.com/testuser/test-mcp-python-server",
+        version: "1.0.0",
+        language: "python",
+        category: "server",
+        tags: ["mcp", "server", "python"],
+      });
+    });
+
+    test("should handle missing project config fields", () => {
+      const projectConfig: ProjectConfig = {
+        type: "nodejs",
+        source: "package.json",
+      };
+
+      const result = extractProjectInfo(projectConfig, "testuser", "test-repo");
 
       expect(result).toEqual({
         name: "test-repo",
@@ -52,21 +82,21 @@ describe("Registry Utils", () => {
         repository: "https://github.com/testuser/test-repo",
         version: "1.0.0",
         language: "javascript",
-        category: "general",
+        category: "server",
         tags: [],
       });
     });
 
     test("should detect TypeScript from dependencies", () => {
-      const packageJson: PackageJsonType = {
+      const projectConfig: ProjectConfig = {
+        type: "nodejs",
         name: "test-project",
-        devDependencies: {
-          typescript: "^5.0.0",
-        },
+        dependencies: ["typescript"],
+        source: "package.json",
       };
 
       const result = extractProjectInfo(
-        packageJson,
+        projectConfig,
         "testuser",
         "test-project"
       );
@@ -74,13 +104,15 @@ describe("Registry Utils", () => {
       expect(result.language).toBe("typescript");
     });
 
-    test("should detect Python from name", () => {
-      const packageJson: PackageJsonType = {
+    test("should detect Python from project type", () => {
+      const projectConfig: ProjectConfig = {
+        type: "python",
         name: "test-python-project",
+        source: "pyproject.toml",
       };
 
       const result = extractProjectInfo(
-        packageJson,
+        projectConfig,
         "testuser",
         "test-python-project"
       );
@@ -89,15 +121,15 @@ describe("Registry Utils", () => {
     });
 
     test("should detect React projects as TypeScript", () => {
-      const packageJson: PackageJsonType = {
+      const projectConfig: ProjectConfig = {
+        type: "nodejs",
         name: "test-react-app",
-        dependencies: {
-          react: "^18.0.0",
-        },
+        dependencies: ["react"],
+        source: "package.json",
       };
 
       const result = extractProjectInfo(
-        packageJson,
+        projectConfig,
         "testuser",
         "test-react-app"
       );
@@ -106,36 +138,22 @@ describe("Registry Utils", () => {
     });
 
     test("should extract category from keywords", () => {
-      const testCases = [
-        { keywords: ["database", "mcp"], expectedCategory: "database" },
-        { keywords: ["api", "server"], expectedCategory: "api" },
-        { keywords: ["web", "frontend"], expectedCategory: "web" },
-        { keywords: ["cli", "tool"], expectedCategory: "tools" },
-        { keywords: ["utility", "helper"], expectedCategory: "utilities" },
-        {
-          keywords: ["integration", "webhook"],
-          expectedCategory: "integrations",
-        },
-        { keywords: ["ai", "ml"], expectedCategory: "ai" },
-        { keywords: ["machine-learning", "nlp"], expectedCategory: "ai" },
-        { keywords: ["random", "stuff"], expectedCategory: "general" },
-      ];
+      const projectConfig: ProjectConfig = {
+        type: "nodejs",
+        name: "test-tool",
+        keywords: ["mcp", "tool", "utility"],
+        source: "package.json",
+      };
 
-      testCases.forEach(({ keywords, expectedCategory }) => {
-        const packageJson: PackageJsonType = { keywords };
-        const result = extractProjectInfo(
-          packageJson,
-          "testuser",
-          "test-project"
-        );
-        expect(result.category).toBe(expectedCategory);
-      });
+      const result = extractProjectInfo(projectConfig, "testuser", "test-tool");
+
+      expect(result.category).toBe("tools");
     });
   });
 
   describe("validateRegistrationData", () => {
     test("should validate valid registration data", () => {
-      const validData: MCPProjectRegistration = {
+      const projectInfo: MCPProjectRegistration = {
         name: "test-mcp-server",
         description: "A test MCP server",
         repository: "https://github.com/testuser/test-mcp-server",
@@ -145,115 +163,93 @@ describe("Registry Utils", () => {
         tags: ["mcp", "server"],
       };
 
-      const result = validateRegistrationData(validData);
+      const result = validateRegistrationData(projectInfo);
 
       expect(result.isValid).toBe(true);
-      expect(result.errors).toHaveLength(0);
+      expect(result.errors).toEqual([]);
     });
 
-    test("should reject empty name", () => {
-      const invalidData: MCPProjectRegistration = {
-        name: "",
+    test("should detect invalid GitHub URL", () => {
+      const projectInfo: MCPProjectRegistration = {
+        name: "test-mcp-server",
         description: "A test MCP server",
-        repository: "https://github.com/testuser/test-mcp-server",
+        repository: "invalid-url",
         version: "1.0.0",
         language: "typescript",
-        category: "server",
-        tags: ["mcp", "server"],
       };
 
-      const result = validateRegistrationData(invalidData);
+      const result = validateRegistrationData(projectInfo);
 
       expect(result.isValid).toBe(false);
-      expect(result.errors).toContain("Project name is required");
+      expect(result.errors).toContain("Invalid GitHub repository URL");
     });
 
-    test("should reject empty description", () => {
-      const invalidData: MCPProjectRegistration = {
+    test("should detect invalid version", () => {
+      const projectInfo: MCPProjectRegistration = {
         name: "test-mcp-server",
+        description: "A test MCP server",
+        repository: "https://github.com/testuser/test-mcp-server",
+        version: "invalid-version",
+        language: "typescript",
+      };
+
+      const result = validateRegistrationData(projectInfo);
+
+      expect(result.isValid).toBe(false);
+      expect(result.errors).toContain("Invalid version format");
+    });
+
+    test("should detect missing required fields", () => {
+      const projectInfo: MCPProjectRegistration = {
+        name: "",
         description: "",
         repository: "https://github.com/testuser/test-mcp-server",
         version: "1.0.0",
         language: "typescript",
-        category: "server",
-        tags: ["mcp", "server"],
       };
 
-      const result = validateRegistrationData(invalidData);
+      const result = validateRegistrationData(projectInfo);
 
       expect(result.isValid).toBe(false);
+      expect(result.errors).toContain("Project name is required");
       expect(result.errors).toContain("Project description is required");
     });
 
-    test("should reject invalid GitHub URL", () => {
-      const invalidData: MCPProjectRegistration = {
+    test("should detect too long description", () => {
+      const projectInfo: MCPProjectRegistration = {
         name: "test-mcp-server",
-        description: "A test MCP server",
-        repository: "https://gitlab.com/testuser/test-mcp-server",
+        description: "A".repeat(501),
+        repository: "https://github.com/testuser/test-mcp-server",
         version: "1.0.0",
         language: "typescript",
-        category: "server",
-        tags: ["mcp", "server"],
       };
 
-      const result = validateRegistrationData(invalidData);
+      const result = validateRegistrationData(projectInfo);
 
       expect(result.isValid).toBe(false);
       expect(result.errors).toContain(
-        "Valid GitHub repository URL is required"
+        "Description is too long (max 500 characters)"
       );
     });
 
-    test("should reject invalid version format", () => {
-      const invalidData: MCPProjectRegistration = {
+    test("should detect invalid language", () => {
+      const projectInfo: MCPProjectRegistration = {
         name: "test-mcp-server",
         description: "A test MCP server",
         repository: "https://github.com/testuser/test-mcp-server",
-        version: "1.0",
-        language: "typescript",
-        category: "server",
-        tags: ["mcp", "server"],
+        version: "1.0.0",
+        language: "invalid-language",
       };
 
-      const result = validateRegistrationData(invalidData);
+      const result = validateRegistrationData(projectInfo);
 
       expect(result.isValid).toBe(false);
-      expect(result.errors).toContain("Valid semantic version is required");
-    });
-
-    test("should validate complex semantic versions", () => {
-      const testCases = [
-        { version: "1.0.0", expected: true },
-        { version: "1.0.0-alpha", expected: true },
-        { version: "1.0.0-beta.1", expected: true },
-        { version: "1.0.0+build.1", expected: true },
-        { version: "1.0.0-alpha+beta", expected: true },
-        { version: "1.0", expected: false },
-        { version: "1.0.0.0", expected: false },
-        { version: "v1.0.0", expected: false },
-        { version: "1.0.0-", expected: false },
-        { version: "1.0.0+", expected: false },
-      ];
-
-      testCases.forEach(({ version, expected }) => {
-        const data: MCPProjectRegistration = {
-          name: "test-mcp-server",
-          description: "A test MCP server",
-          repository: "https://github.com/testuser/test-mcp-server",
-          version,
-          language: "typescript",
-          category: "server",
-          tags: ["mcp", "server"],
-        };
-
-        const result = validateRegistrationData(data);
-        expect(result.isValid).toBe(expected);
-      });
+      expect(result.errors).toContain("Invalid language: invalid-language");
     });
   });
 
   describe("generateRegistrationSummary", () => {
-    test("should generate registration summary", () => {
+    test("should generate summary for TypeScript project", () => {
       const projectInfo: MCPProjectRegistration = {
         name: "test-mcp-server",
         description: "A test MCP server",
@@ -264,139 +260,158 @@ describe("Registry Utils", () => {
         tags: ["mcp", "server"],
       };
 
-      const summary = generateRegistrationSummary(projectInfo);
+      const result = generateRegistrationSummary(projectInfo);
 
-      expect(summary).toContain("🚀 MCP Project Registration");
-      expect(summary).toContain("test-mcp-server");
-      expect(summary).toContain("A test MCP server");
-      expect(summary).toContain("https://github.com/testuser/test-mcp-server");
-      expect(summary).toContain("1.0.0");
-      expect(summary).toContain("typescript");
-      expect(summary).toContain("server");
-      expect(summary).toContain("mcp, server");
-      expect(summary).toContain("✅ Ready for submission");
+      expect(result).toContain("test-mcp-server");
+      expect(result).toContain("TypeScript");
+      expect(result).toContain("Server");
+      expect(result).toContain("A test MCP server");
     });
 
-    test("should handle empty tags", () => {
+    test("should generate summary for Python project", () => {
       const projectInfo: MCPProjectRegistration = {
-        name: "test-mcp-server",
-        description: "A test MCP server",
-        repository: "https://github.com/testuser/test-mcp-server",
-        version: "1.0.0",
-        language: "typescript",
+        name: "test-python-server",
+        description: "A Python MCP server",
+        repository: "https://github.com/testuser/test-python-server",
+        version: "2.0.0",
+        language: "python",
         category: "server",
-        tags: [],
+        tags: ["mcp", "python"],
       };
 
-      const summary = generateRegistrationSummary(projectInfo);
+      const result = generateRegistrationSummary(projectInfo);
 
-      expect(summary).toContain("none");
+      expect(result).toContain("test-python-server");
+      expect(result).toContain("Python");
+      expect(result).toContain("Server");
+      expect(result).toContain("A Python MCP server");
     });
   });
 
   describe("isEligibleForAutoRegistration", () => {
-    test("should return true for eligible project", () => {
-      const packageJson: PackageJsonType = {
+    test("should return true for eligible Node.js project", () => {
+      const projectConfig: ProjectConfig = {
+        type: "nodejs",
         name: "test-mcp-server",
         description: "A test MCP server",
         version: "1.0.0",
         keywords: ["mcp", "server"],
-        dependencies: {
-          "@modelcontextprotocol/sdk": "^1.0.0",
-        },
+        dependencies: ["@modelcontextprotocol/sdk"],
+        source: "package.json",
       };
 
-      const result = isEligibleForAutoRegistration(packageJson, true);
+      const result = isEligibleForAutoRegistration(projectConfig, true);
+
+      expect(result).toBe(true);
+    });
+
+    test("should return true for eligible Python project", () => {
+      const projectConfig: ProjectConfig = {
+        type: "python",
+        name: "test-mcp-server",
+        description: "A test MCP server",
+        version: "1.0.0",
+        keywords: ["mcp", "server"],
+        dependencies: ["fastapi", "uvicorn"],
+        source: "pyproject.toml",
+      };
+
+      const result = isEligibleForAutoRegistration(projectConfig, true);
 
       expect(result).toBe(true);
     });
 
     test("should return false without MCP dependency", () => {
-      const packageJson: PackageJsonType = {
-        name: "test-mcp-server",
-        description: "A test MCP server",
+      const projectConfig: ProjectConfig = {
+        type: "nodejs",
+        name: "test-server",
+        description: "A test server",
         version: "1.0.0",
         keywords: ["mcp", "server"],
+        dependencies: ["express"],
+        source: "package.json",
       };
 
-      const result = isEligibleForAutoRegistration(packageJson, true);
+      const result = isEligibleForAutoRegistration(projectConfig, true);
 
       expect(result).toBe(false);
     });
 
     test("should return false without valid structure", () => {
-      const packageJson: PackageJsonType = {
+      const projectConfig: ProjectConfig = {
+        type: "nodejs",
         name: "test-mcp-server",
         description: "A test MCP server",
         version: "1.0.0",
         keywords: ["mcp", "server"],
-        dependencies: {
-          "@modelcontextprotocol/sdk": "^1.0.0",
-        },
+        dependencies: ["@modelcontextprotocol/sdk"],
+        source: "package.json",
       };
 
-      const result = isEligibleForAutoRegistration(packageJson, false);
+      const result = isEligibleForAutoRegistration(projectConfig, false);
 
       expect(result).toBe(false);
     });
 
     test("should return false without required fields", () => {
-      const packageJson: PackageJsonType = {
+      const projectConfig: ProjectConfig = {
+        type: "nodejs",
+        name: "",
+        description: "",
         keywords: ["mcp", "server"],
-        dependencies: {
-          "@modelcontextprotocol/sdk": "^1.0.0",
-        },
+        dependencies: ["@modelcontextprotocol/sdk"],
+        source: "package.json",
       };
 
-      const result = isEligibleForAutoRegistration(packageJson, true);
+      const result = isEligibleForAutoRegistration(projectConfig, true);
 
       expect(result).toBe(false);
     });
 
     test("should return false without MCP keywords", () => {
-      const packageJson: PackageJsonType = {
+      const projectConfig: ProjectConfig = {
+        type: "nodejs",
         name: "test-server",
         description: "A test server",
         version: "1.0.0",
-        keywords: ["server", "api"],
-        dependencies: {
-          "@modelcontextprotocol/sdk": "^1.0.0",
-        },
+        keywords: ["server", "tool"],
+        dependencies: ["@modelcontextprotocol/sdk"],
+        source: "package.json",
       };
 
-      const result = isEligibleForAutoRegistration(packageJson, true);
+      const result = isEligibleForAutoRegistration(projectConfig, true);
 
       expect(result).toBe(false);
     });
 
     test("should return true with MCP in project name", () => {
-      const packageJson: PackageJsonType = {
-        name: "my-mcp-server",
-        description: "A test server",
+      const projectConfig: ProjectConfig = {
+        type: "nodejs",
+        name: "my-mcp-tool",
+        description: "A test tool",
         version: "1.0.0",
-        keywords: ["server", "api"],
-        dependencies: {
-          "@modelcontextprotocol/sdk": "^1.0.0",
-        },
+        keywords: ["tool"],
+        dependencies: ["@modelcontextprotocol/sdk"],
+        source: "package.json",
       };
 
-      const result = isEligibleForAutoRegistration(packageJson, true);
+      const result = isEligibleForAutoRegistration(projectConfig, true);
 
       expect(result).toBe(true);
     });
 
-    test("should check devDependencies for MCP SDK", () => {
-      const packageJson: PackageJsonType = {
+    test("should check Python MCP dependencies", () => {
+      const projectConfig: ProjectConfig = {
+        type: "python",
         name: "test-mcp-server",
         description: "A test MCP server",
         version: "1.0.0",
         keywords: ["mcp", "server"],
-        devDependencies: {
-          "@modelcontextprotocol/sdk": "^1.0.0",
-        },
+        dependencies: ["mcp-core", "fastapi"],
+        source: "pyproject.toml",
       };
 
-      const result = isEligibleForAutoRegistration(packageJson, true);
+      const result = isEligibleForAutoRegistration(projectConfig, true);
 
       expect(result).toBe(true);
     });

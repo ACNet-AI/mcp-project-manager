@@ -2,8 +2,8 @@
   "action": "opened",
   "issue": {
     "number": 1,
-    "title": "Help with MCP server setup",
-    "body": "I need help setting up my MCP server project",
+    "title": "Help with MCP server registration",
+    "body": "I need help with registration of my MCP server project",
     "labels": [
       {
         "id": 1,

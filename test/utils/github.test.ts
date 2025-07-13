@@ -184,7 +184,7 @@ describe("GitHub Utils", () => {
 
       const files = [
         { path: "test.txt", content: "Hello World", message: "Add test file" },
-        { path: "config.json", content: '{"test": true}' },
+        { path: "config.json", content: "{\"test\": true}" },
       ];
 
       await pushFilesToRepository(context, "testuser", "test-repo", files);
@@ -375,6 +375,10 @@ describe("GitHub Utils", () => {
         BUG: "bug",
         AUTOMATION: "automation",
         AUTO_REGISTERED: "auto-registered",
+        MANUAL_REVIEW: "manual-review",
+        REGISTRATION_PENDING: "registration-pending",
+        REGISTRATION_READY: "registration-ready",
+        WELCOME: "welcome",
       });
     });
   });

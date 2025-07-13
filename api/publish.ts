@@ -1,5 +1,8 @@
-import { VercelRequest, VercelResponse } from '@vercel/node';
-import { extractProjectInfo, validateRegistrationData } from '../src/utils/registry.js';
+import { VercelRequest, VercelResponse } from "@vercel/node";
+import {
+  extractProjectInfo,
+  validateRegistrationData,
+} from "../src/utils/registry.js";
 
 /**
  * Vercel API function for external project publishing
@@ -8,7 +11,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   // Only allow POST requests
   if (req.method !== "POST") {
     res.statusCode = 405;
-    res.setHeader('Content-Type', 'application/json');
+    res.setHeader("Content-Type", "application/json");
     return res.end(JSON.stringify({ error: "Method not allowed" }));
   }
 
@@ -23,14 +26,14 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         chunks.push(chunk);
       }
       const rawBody = Buffer.concat(chunks).toString();
-      console.log('Raw body:', rawBody);
-      
+      console.log("Raw body:", rawBody);
+
       if (rawBody) {
         try {
           publishRequest = JSON.parse(rawBody);
         } catch (parseError) {
           res.statusCode = 400;
-          res.setHeader('Content-Type', 'application/json');
+          res.setHeader("Content-Type", "application/json");
           return res.end(JSON.stringify({ error: "Invalid JSON" }));
         }
       }
@@ -38,11 +41,11 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       publishRequest = req.body;
     }
 
-    console.log('Parsed request:', publishRequest);
-    
+    console.log("Parsed request:", publishRequest);
+
     if (!publishRequest) {
       res.statusCode = 400;
-      res.setHeader('Content-Type', 'application/json');
+      res.setHeader("Content-Type", "application/json");
       return res.end(JSON.stringify({ error: "Request body is required" }));
     }
 
@@ -53,11 +56,13 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       !publishRequest.language
     ) {
       res.statusCode = 400;
-      res.setHeader('Content-Type', 'application/json');
-      return res.end(JSON.stringify({
-        error: "Missing required fields: projectName, files, language",
-        received: Object.keys(publishRequest || {})
-      }));
+      res.setHeader("Content-Type", "application/json");
+      return res.end(
+        JSON.stringify({
+          error: "Missing required fields: projectName, files, language",
+          received: Object.keys(publishRequest || {}),
+        })
+      );
     }
 
     // Extract package.json if provided
@@ -74,20 +79,24 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
           packageJson = JSON.parse(packageJsonFile.content);
         } catch (error) {
           res.statusCode = 400;
-          res.setHeader('Content-Type', 'application/json');
-          return res.end(JSON.stringify({
-            error: "Invalid package.json format",
-          }));
+          res.setHeader("Content-Type", "application/json");
+          return res.end(
+            JSON.stringify({
+              error: "Invalid package.json format",
+            })
+          );
         }
       }
     }
 
     if (!packageJson) {
       res.statusCode = 400;
-      res.setHeader('Content-Type', 'application/json');
-      return res.end(JSON.stringify({
-        error: "No valid package.json found",
-      }));
+      res.setHeader("Content-Type", "application/json");
+      return res.end(
+        JSON.stringify({
+          error: "No valid package.json found",
+        })
+      );
     }
 
     // Extract project info for registration
@@ -104,22 +113,26 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
     if (errors.length > 0) {
       res.statusCode = 400;
-      res.setHeader('Content-Type', 'application/json');
-      return res.end(JSON.stringify({
-        error: "Invalid request data",
-        details: errors,
-      }));
+      res.setHeader("Content-Type", "application/json");
+      return res.end(
+        JSON.stringify({
+          error: "Invalid request data",
+          details: errors,
+        })
+      );
     }
 
     // Validate registration data
     const registrationValidation = validateRegistrationData(projectInfo);
     if (!registrationValidation.isValid) {
       res.statusCode = 400;
-      res.setHeader('Content-Type', 'application/json');
-      return res.end(JSON.stringify({
-        error: "Invalid project data",
-        details: registrationValidation.errors,
-      }));
+      res.setHeader("Content-Type", "application/json");
+      return res.end(
+        JSON.stringify({
+          error: "Invalid project data",
+          details: registrationValidation.errors,
+        })
+      );
     }
 
     // Return success response
@@ -133,16 +146,17 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     };
 
     res.statusCode = 200;
-    res.setHeader('Content-Type', 'application/json');
+    res.setHeader("Content-Type", "application/json");
     return res.end(JSON.stringify(response));
-
   } catch (error) {
     console.error("Publish API error:", error);
     res.statusCode = 500;
-    res.setHeader('Content-Type', 'application/json');
-    return res.end(JSON.stringify({
-      error: "Internal server error",
-      message: error instanceof Error ? error.message : String(error),
-    }));
+    res.setHeader("Content-Type", "application/json");
+    return res.end(
+      JSON.stringify({
+        error: "Internal server error",
+        message: error instanceof Error ? error.message : String(error),
+      })
+    );
   }
-} 
+}

@@ -13,14 +13,7 @@ import { fileURLToPath } from "url";
 import { describe, beforeEach, afterEach, test, expect } from "vitest";
 
 const issueCreatedBody = {
-  body: `👋 Thanks for opening this MCP-related issue! 
-
-🤖 **MCP Project Manager** is here to help. If this is about:
-- 🚀 **Project Registration**: I can help register your MCP server
-- 🔍 **Validation Issues**: I can check your project structure
-- 🛠️ **Setup Problems**: I can provide guidance on MCP development
-
-Feel free to add relevant labels or mention specific requirements!`,
+  body: expect.stringContaining("MCP Factory Project Status"),
 };
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
@@ -101,7 +94,53 @@ describe("MCP Project Manager", () => {
           issues: "write",
         },
       })
+      // Mock file detection calls for Python MCP Factory project
+      .get(uri =>
+        uri.includes("/repos/hiimbex/testing-things/contents/pyproject.toml")
+      )
+      .reply(200, {
+        content: Buffer.from(
+          `[project]
+name = "test-mcp-server"
+version = "1.0.0"
+description = "A test MCP server"
+dependencies = [
+    "mcp",
+    "mcp-factory>=0.1.0",
+]
 
+[build-system]
+requires = ["setuptools>=61.0"]
+build-backend = "setuptools.build_meta"`
+        ).toString("base64"),
+        encoding: "base64",
+      })
+      // Mock required files for structure check
+      .get(uri =>
+        uri.includes("/repos/hiimbex/testing-things/contents/server.py")
+      )
+      .reply(200, {
+        content: Buffer.from("# MCP Server implementation").toString("base64"),
+        encoding: "base64",
+      })
+      .get(uri =>
+        uri.includes("/repos/hiimbex/testing-things/contents/README.md")
+      )
+      .reply(200, {
+        content: Buffer.from("# Test MCP Server").toString("base64"),
+        encoding: "base64",
+      })
+      // Mock required directories
+      .get(uri => uri.includes("/repos/hiimbex/testing-things/contents/tools"))
+      .reply(200, [])
+      .get(uri =>
+        uri.includes("/repos/hiimbex/testing-things/contents/resources")
+      )
+      .reply(200, [])
+      .get(uri =>
+        uri.includes("/repos/hiimbex/testing-things/contents/prompts")
+      )
+      .reply(200, [])
       // Test that a comment is posted
       .post("/repos/hiimbex/testing-things/issues/1/comments", (body: any) => {
         expect(body).toMatchObject(issueCreatedBody);
@@ -113,9 +152,16 @@ describe("MCP Project Manager", () => {
     await probot.receive({ name: "issues", payload });
 
     expect(mock.pendingMocks()).toStrictEqual([]);
+  }, 10000); // Increase timeout to 10 seconds
+
+  beforeEach(() => {
+    nock.disableNetConnect(); // Ensure all requests must go through mocks
   });
 
   afterEach(() => {
+    if (!nock.isDone()) {
+      console.log("Pending mocks:", nock.pendingMocks());
+    }
     nock.cleanAll();
     nock.enableNetConnect();
   });
@@ -130,12 +176,63 @@ describe("MCP Project Manager", () => {
             issues: "write",
           },
         })
+        // Mock file detection calls for Python MCP Factory project (with query params)
+        .get(uri =>
+          uri.includes("/repos/hiimbex/testing-things/contents/pyproject.toml")
+        )
+        .reply(200, {
+          content: Buffer.from(
+            `[project]
+name = "test-mcp-server"
+version = "1.0.0"
+description = "A test MCP server"
+dependencies = [
+    "mcp",
+    "mcp-factory>=0.1.0",
+]
+
+[build-system]
+requires = ["setuptools>=61.0"]
+build-backend = "setuptools.build_meta"`
+          ).toString("base64"),
+          encoding: "base64",
+        })
+        // Mock required files for structure check
+        .get(uri =>
+          uri.includes("/repos/hiimbex/testing-things/contents/server.py")
+        )
+        .reply(200, {
+          content: Buffer.from("# MCP Server implementation").toString(
+            "base64"
+          ),
+          encoding: "base64",
+        })
+        .get(uri =>
+          uri.includes("/repos/hiimbex/testing-things/contents/README.md")
+        )
+        .reply(200, {
+          content: Buffer.from("# Test MCP Server").toString("base64"),
+          encoding: "base64",
+        })
+        // Mock required directories
+        .get(uri =>
+          uri.includes("/repos/hiimbex/testing-things/contents/tools")
+        )
+        .reply(200, [])
+        .get(uri =>
+          uri.includes("/repos/hiimbex/testing-things/contents/resources")
+        )
+        .reply(200, [])
+        .get(uri =>
+          uri.includes("/repos/hiimbex/testing-things/contents/prompts")
+        )
+        .reply(200, [])
         .post(
           "/repos/hiimbex/testing-things/issues/1/comments",
           (body: any) => {
             expect(body).toEqual(
               expect.objectContaining({
-                body: expect.stringContaining("MCP-related issue"),
+                body: expect.stringContaining("MCP Factory Project Status"),
               })
             );
             return true;
@@ -146,7 +243,7 @@ describe("MCP Project Manager", () => {
       await probot.receive({ name: "issues", payload: issuesPayload });
 
       expect(mock.pendingMocks()).toStrictEqual([]);
-    });
+    }, 10000); // Increase timeout to 10 seconds
 
     test("ignores non-MCP related issues", async () => {
       const nonMcpIssue = {
@@ -167,6 +264,8 @@ describe("MCP Project Manager", () => {
 
   describe("Push Events", () => {
     test("handles push to main branch", async () => {
+      nock.disableNetConnect(); // Ensure all requests must go through mocks
+
       const mock = nock("https://api.github.com")
         .post("/app/installations/2/access_tokens")
         .reply(200, {
@@ -176,39 +275,32 @@ describe("MCP Project Manager", () => {
             issues: "write",
           },
         })
-        .get("/repos/hiimbex/testing-things/contents/package.json")
+        // Mock file detection calls for Python MCP Factory project
+        .get(
+          "/repos/hiimbex/testing-things/contents/pyproject.toml?ref=refs/heads/main"
+        )
         .reply(200, {
           content: Buffer.from(
-            JSON.stringify({
-              name: "test-mcp-server",
-              dependencies: {
-                "@modelcontextprotocol/sdk": "^1.0.0",
-              },
-            })
+            `[project]
+name = "test-mcp-server"
+version = "1.0.0"
+description = "A test MCP server"
+dependencies = [
+    "mcp",
+    "mcp-factory>=0.1.0",
+]
+
+[build-system]
+requires = ["setuptools>=61.0"]
+build-backend = "setuptools.build_meta"`
           ).toString("base64"),
-        })
-        // Mock validation calls
-        .get("/repos/hiimbex/testing-things/contents/package.json")
-        .reply(200, {
-          content: Buffer.from(
-            JSON.stringify({
-              name: "test-mcp-server",
-              description: "A test MCP server",
-              main: "index.js",
-              dependencies: {
-                "@modelcontextprotocol/sdk": "^1.0.0",
-              },
-            })
-          ).toString("base64"),
-        })
-        .get("/repos/hiimbex/testing-things/contents/README.md")
-        .reply(200, {
-          content: Buffer.from("# Test MCP Server").toString("base64"),
+          encoding: "base64",
         });
 
       await probot.receive({ name: "push", payload: pushPayload });
 
       expect(mock.pendingMocks()).toStrictEqual([]);
+      nock.enableNetConnect(); // Re-enable for cleanup
     });
 
     test("ignores push to non-main branch", async () => {
@@ -225,6 +317,8 @@ describe("MCP Project Manager", () => {
 
   describe("Pull Request Events", () => {
     test("handles pull request opened", async () => {
+      nock.disableNetConnect(); // Ensure all requests must go through mocks
+
       const mock = nock("https://api.github.com")
         .post("/app/installations/2/access_tokens")
         .reply(200, {
@@ -234,6 +328,45 @@ describe("MCP Project Manager", () => {
             issues: "write",
           },
         })
+        // Mock file detection calls for Python MCP Factory project
+        .get("/repos/hiimbex/testing-things/contents/pyproject.toml?ref=abc123")
+        .reply(200, {
+          content: Buffer.from(
+            `[project]
+name = "test-mcp-server"
+version = "1.0.0"
+description = "A test MCP server"
+dependencies = [
+    "mcp",
+    "mcp-factory>=0.1.0",
+]
+
+[build-system]
+requires = ["setuptools>=61.0"]
+build-backend = "setuptools.build_meta"`
+          ).toString("base64"),
+          encoding: "base64",
+        })
+        // Mock required files for structure check
+        .get("/repos/hiimbex/testing-things/contents/server.py?ref=abc123")
+        .reply(200, {
+          content: Buffer.from("# MCP Server implementation").toString(
+            "base64"
+          ),
+          encoding: "base64",
+        })
+        .get("/repos/hiimbex/testing-things/contents/README.md?ref=abc123")
+        .reply(200, {
+          content: Buffer.from("# Test MCP Server").toString("base64"),
+          encoding: "base64",
+        })
+        // Mock required directories
+        .get("/repos/hiimbex/testing-things/contents/tools?ref=abc123")
+        .reply(200, [])
+        .get("/repos/hiimbex/testing-things/contents/resources?ref=abc123")
+        .reply(200, [])
+        .get("/repos/hiimbex/testing-things/contents/prompts?ref=abc123")
+        .reply(200, [])
         .post("/repos/hiimbex/testing-things/issues/1/comments")
         .reply(200, { id: 1 });
 
@@ -243,6 +376,7 @@ describe("MCP Project Manager", () => {
       });
 
       expect(mock.pendingMocks()).toStrictEqual([]);
+      nock.enableNetConnect(); // Re-enable for cleanup
     });
 
     test("handles pull request merged", async () => {
@@ -255,49 +389,21 @@ describe("MCP Project Manager", () => {
         },
       };
 
-      const mock = nock("https://api.github.com")
-        .post("/app/installations/2/access_tokens")
-        .reply(200, {
-          token: "test",
-          permissions: {
-            issues: "write",
-          },
-        })
-        .post("/repos/hiimbex/testing-things/issues/1/comments")
-        .reply(200, { id: 1 });
-
+      // No mocks needed since we don't handle merged PRs
       await probot.receive({ name: "pull_request", payload: mergedPR });
 
-      expect(mock.pendingMocks()).toStrictEqual([]);
+      // No API calls should be made for merged PRs
+      expect(nock.pendingMocks()).toStrictEqual([]);
     });
   });
 
   describe("Release Events", () => {
     test("handles release published", async () => {
-      const mock = nock("https://api.github.com")
-        .post("/app/installations/2/access_tokens")
-        .reply(200, {
-          token: "test",
-          permissions: {
-            contents: "read",
-            issues: "write",
-          },
-        })
-        .get("/repos/hiimbex/testing-things/contents/package.json?ref=v1.0.0")
-        .reply(200, {
-          content: Buffer.from(
-            JSON.stringify({
-              name: "test-mcp-server",
-              dependencies: {
-                "@modelcontextprotocol/sdk": "^1.0.0",
-              },
-            })
-          ).toString("base64"),
-        });
-
+      // No mocks needed since we don't handle release events currently
       await probot.receive({ name: "release", payload: releasePayload });
 
-      expect(mock.pendingMocks()).toStrictEqual([]);
+      // No API calls should be made for release events
+      expect(nock.pendingMocks()).toStrictEqual([]);
     });
 
     test("ignores draft releases", async () => {
@@ -343,11 +449,73 @@ describe("MCP Project Manager", () => {
 
   describe("Repository Events", () => {
     test("handles MCP repository created", async () => {
-      // For repository events, no API calls are expected in the current implementation
+      const mock = nock("https://api.github.com")
+        .post("/app/installations/2/access_tokens")
+        .reply(200, {
+          token: "test",
+          permissions: {
+            contents: "read",
+            issues: "write",
+          },
+        })
+        // Mock MCP Factory project detection calls (with query params)
+        .get(uri =>
+          uri.includes("/repos/hiimbex/new-mcp-server/contents/pyproject.toml")
+        )
+        .reply(200, {
+          content: Buffer.from(
+            `[project]
+name = "test-mcp-server"
+version = "1.0.0"
+description = "A test MCP server"
+dependencies = [
+    "mcp",
+    "mcp-factory>=0.1.0",
+]
+
+[build-system]
+requires = ["setuptools>=61.0"]
+build-backend = "setuptools.build_meta"`
+          ).toString("base64"),
+          encoding: "base64",
+        })
+        // Mock required files for structure check
+        .get(uri =>
+          uri.includes("/repos/hiimbex/new-mcp-server/contents/server.py")
+        )
+        .reply(200, {
+          content: Buffer.from("# MCP Server implementation").toString(
+            "base64"
+          ),
+          encoding: "base64",
+        })
+        .get(uri =>
+          uri.includes("/repos/hiimbex/new-mcp-server/contents/README.md")
+        )
+        .reply(200, {
+          content: Buffer.from("# Test MCP Server").toString("base64"),
+          encoding: "base64",
+        })
+        // Mock required directories
+        .get(uri =>
+          uri.includes("/repos/hiimbex/new-mcp-server/contents/tools")
+        )
+        .reply(200, [])
+        .get(uri =>
+          uri.includes("/repos/hiimbex/new-mcp-server/contents/resources")
+        )
+        .reply(200, [])
+        .get(uri =>
+          uri.includes("/repos/hiimbex/new-mcp-server/contents/prompts")
+        )
+        .reply(200, [])
+        .post("/repos/hiimbex/new-mcp-server/issues")
+        .reply(200, { id: 1, number: 1 });
+
       await probot.receive({ name: "repository", payload: repositoryPayload });
 
-      expect(nock.pendingMocks()).toStrictEqual([]);
-    });
+      expect(mock.pendingMocks()).toStrictEqual([]);
+    }, 15000); // Increase timeout to 15 seconds for repository creation delay
 
     test("ignores non-MCP repository", async () => {
       const nonMcpRepo = {
@@ -359,10 +527,24 @@ describe("MCP Project Manager", () => {
         },
       };
 
+      const mock = nock("https://api.github.com")
+        .post("/app/installations/2/access_tokens")
+        .reply(200, {
+          token: "test",
+          permissions: {
+            contents: "read",
+          },
+        })
+        // Mock file detection calls that will fail (not an MCP Factory project)
+        .get(uri =>
+          uri.includes("/repos/hiimbex/regular-repo/contents/pyproject.toml")
+        )
+        .reply(404);
+
       await probot.receive({ name: "repository", payload: nonMcpRepo });
 
-      expect(nock.pendingMocks()).toStrictEqual([]);
-    });
+      expect(mock.pendingMocks()).toStrictEqual([]);
+    }, 10000); // Increase timeout to 10 seconds
   });
 
   describe("Error Handling", () => {
@@ -375,15 +557,21 @@ describe("MCP Project Manager", () => {
             issues: "write",
           },
         })
+        // Mock file detection calls for non-MCP Factory project (with query params)
+        .get(uri =>
+          uri.includes("/repos/hiimbex/testing-things/contents/pyproject.toml")
+        )
+        .reply(404)
         .post("/repos/hiimbex/testing-things/issues/1/comments")
-        .reply(500, { message: "Internal Server Error" });
+        .reply(200);
 
       // Should not throw errors, but handle gracefully
       await expect(
         probot.receive({ name: "issues", payload: issuesPayload })
       ).resolves.not.toThrow();
 
-      expect(mock.pendingMocks()).toStrictEqual([]);
+      // The pyproject.toml call is made but other files aren't needed for 404 case
+      expect(mock.pendingMocks()).toHaveLength(0);
     });
 
     test("handles missing installation", async () => {

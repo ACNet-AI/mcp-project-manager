@@ -6,6 +6,98 @@ import { Context } from "probot";
 export type ProbotContext = Context;
 
 /**
+ * Package.json type definition for Node.js projects
+ */
+export interface PackageJsonType {
+  name: string;
+  description?: string;
+  version?: string;
+  keywords?: string[];
+  dependencies?: Record<string, string>;
+  devDependencies?: Record<string, string>;
+  scripts?: Record<string, string>;
+  author?: string | { name: string; email?: string };
+  license?: string;
+  main?: string;
+  repository?: string | { type: string; url: string };
+  bugs?: string | { url: string };
+  homepage?: string;
+  [key: string]: any;
+}
+
+/**
+ * Python pyproject.toml configuration
+ */
+export interface PyProjectConfig {
+  project?: {
+    name?: string;
+    version?: string;
+    description?: string;
+    keywords?: string[];
+    dependencies?: string[];
+    authors?: Array<{ name: string; email?: string }>;
+    license?: string | { text: string };
+    readme?: string;
+    "requires-python"?: string;
+    [key: string]: any;
+  };
+  "build-system"?: {
+    requires?: string[];
+    "build-backend"?: string;
+  };
+  tool?: Record<string, any>;
+  [key: string]: any;
+}
+
+/**
+ * Python setup.py configuration
+ */
+export interface PythonSetupConfig {
+  name?: string;
+  version?: string;
+  description?: string;
+  keywords?: string[];
+  install_requires?: string[];
+  author?: string;
+  author_email?: string;
+  license?: string;
+  long_description?: string;
+  url?: string;
+  classifiers?: string[];
+  [key: string]: any;
+}
+
+/**
+ * Unified project configuration interface
+ */
+export interface ProjectConfig {
+  type: "nodejs" | "python";
+  name: string;
+  description?: string;
+  version?: string;
+  keywords?: string[];
+  dependencies?: string[];
+  author?: string;
+  license?: string;
+  source: "package.json" | "pyproject.toml" | "setup.py";
+
+  // Type-specific configurations
+  packageJson?: PackageJsonType;
+  pyprojectConfig?: PyProjectConfig;
+  setupConfig?: PythonSetupConfig;
+}
+
+/**
+ * MCP Detection Result for unified projects
+ */
+export interface UnifiedMCPDetectionResult {
+  isMCPProject: boolean;
+  reasons: string[];
+  confidence?: number;
+  projectData?: ProjectConfig;
+}
+
+/**
  * GitHub Issues event payload type
  */
 export interface IssuesPayload {
@@ -168,37 +260,73 @@ export interface InstallationPayload {
 }
 
 /**
- * Package.json type definition
+ * MCP Factory PyProject configuration interface
+ * Represents the pyproject.toml structure for MCP Factory projects
  */
-export interface PackageJsonType {
-  name?: string;
-  version?: string;
-  description?: string;
-  main?: string;
-  module?: string;
-  scripts?: Record<string, string>;
-  dependencies?: Record<string, string>;
-  devDependencies?: Record<string, string>;
-  keywords?: string[];
-  author?:
-    | string
-    | {
-        name: string;
-        email?: string;
-        url?: string;
-      };
-  license?: string;
-  repository?:
-    | string
-    | {
-        type: string;
-        url: string;
-      };
+export interface MCPFactoryPyProject {
+  project?: {
+    name?: string;
+    version?: string;
+    description?: string;
+    readme?: string;
+    authors?: Array<{
+      name: string;
+      email?: string;
+    }>;
+    license?: string | { text: string };
+    keywords?: string[];
+    dependencies?: string[];
+    "requires-python"?: string;
+    "optional-dependencies"?: Record<string, string[]>;
+  };
+  "build-system"?: {
+    requires?: string[];
+    "build-backend"?: string;
+  };
+  tool?: Record<string, any>;
   [key: string]: unknown;
 }
 
 /**
- * Validation result type
+ * MCP Factory project configuration
+ * Represents a project created by MCP Factory with standardized structure
+ */
+export interface MCPFactoryProject {
+  type: "mcp-factory";
+  name: string;
+  version: string;
+  description: string;
+
+  // Factory-specific properties
+  factoryVersion?: string;
+  hasFactoryDependency: boolean;
+
+  // Standard project properties
+  keywords?: string[];
+  author?: string;
+  license?: string;
+
+  // Structure compliance
+  structureCompliance: number; // 0-1 score
+  requiredFiles: {
+    pyprojectToml: boolean;
+    serverPy: boolean;
+    configYaml?: boolean;
+    readme: boolean;
+  };
+
+  requiredDirectories: {
+    tools: boolean;
+    resources: boolean;
+    prompts: boolean;
+  };
+
+  // Raw configuration
+  pyprojectConfig: MCPFactoryPyProject;
+}
+
+/**
+ * Validation result interface
  */
 export interface ValidationResult {
   isValid: boolean;
@@ -208,17 +336,17 @@ export interface ValidationResult {
 }
 
 /**
- * MCP detection result type
+ * MCP Factory project detection result
  */
 export interface MCPDetectionResult {
   isMCPProject: boolean;
   confidence: number;
   reasons: string[];
-  suggestedCategory?: string;
+  projectData?: MCPFactoryProject;
 }
 
 /**
- * File content type
+ * File content interface for repository operations
  */
 export interface FileContent {
   path: string;
@@ -239,30 +367,31 @@ export interface RepositoryCreateOptions {
 }
 
 /**
- * MCP project registration info
+ * MCP Factory project registration interface
  */
 export interface MCPProjectRegistration {
   name: string;
   description: string;
   repository: string;
   version: string;
-  language: string;
-  category?: string;
+  language: "python" | "typescript" | "javascript"; // Support multiple languages
+  category: "server" | "tools" | "resources" | "prompts";
   tags?: string[];
+  factoryVersion?: string;
 }
 
 /**
- * Publish request interface
+ * Publish request interface for MCP Factory projects
  */
 export interface PublishRequest {
   projectName: string;
   description?: string;
   version?: string;
-  language: string;
-  category?: string;
+  language: "python"; // MCP Factory only creates Python projects
+  category?: "server" | "tools" | "resources" | "prompts";
   tags?: string[];
   files: Array<{ path: string; content: string }>;
-  packageJson?: PackageJsonType;
+  mcpFactoryProject?: MCPFactoryProject;
   owner?: string;
   repoName?: string;
 }

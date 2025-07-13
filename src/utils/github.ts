@@ -262,4 +262,8 @@ export const LABELS = {
   BUG: "bug",
   AUTOMATION: "automation",
   AUTO_REGISTERED: "auto-registered",
+  REGISTRATION_READY: "registration-ready",
+  REGISTRATION_PENDING: "registration-pending",
+  MANUAL_REVIEW: "manual-review",
+  WELCOME: "welcome",
 } as const;
