@@ -22,14 +22,18 @@ export default (app: Probot) => {
   app.on("installation.created", async context => {
     const { installation } = context.payload;
 
+    const account = installation.account;
+    const accountLogin = account && "login" in account ? account.login : "unknown";
+    const accountType = account && "type" in account ? account.type : undefined;
+    
     context.log.info(
-      `🎉 MCP Project Manager installed for ${installation.account.login}`
+      `🎉 MCP Project Manager installed for ${accountLogin}`
     );
 
     try {
-      if (installation.account.type === "Organization") {
+      if (accountType === "Organization") {
         context.log.info(
-          `📦 Ready to manage MCP Factory projects for ${installation.account.login}`
+          `📦 Ready to manage MCP Factory projects for ${accountLogin}`
         );
       }
     } catch (error) {
@@ -48,6 +52,12 @@ export default (app: Probot) => {
       }
 
       context.log.info(`📤 Push received for ${repository.full_name}`);
+
+      // Check if repository owner exists
+      if (!repository.owner) {
+        context.log.error("Repository owner is null");
+        return;
+      }
 
       // Detect MCP Factory project
       const detectionResult = await detectMCPFactoryProject(
@@ -127,7 +137,7 @@ Once these issues are resolved, push your changes to trigger automatic re-valida
         if (registrationValidation.isValid) {
           const projectInfo = extractProjectInfo(
             project,
-            repository.owner.login,
+            repository.owner!.login,
             repository.name
           );
 
@@ -208,7 +218,7 @@ Once these issues are resolved, push your changes to trigger re-evaluation.
 
         const projectInfo = extractProjectInfo(
           project,
-          repository.owner.login,
+          repository.owner!.login,
           repository.name
         );
 

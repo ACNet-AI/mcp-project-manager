@@ -114,7 +114,7 @@ export async function createIssue(
   title: string,
   body: string,
   labels: string[] = []
-) {
+): Promise<any> {
   const { owner, repo } = getRepoInfo(context);
 
   try {
@@ -138,7 +138,7 @@ export async function createComment(
   context: ProbotContext,
   issueNumber: number,
   body: string
-) {
+): Promise<any> {
   const { owner, repo } = getRepoInfo(context);
 
   try {
