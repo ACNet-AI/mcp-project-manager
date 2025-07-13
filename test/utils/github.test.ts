@@ -306,27 +306,109 @@ describe("GitHub Utils", () => {
   });
 
   describe("registerToHub", () => {
-    test("should register project to hub", async () => {
+    test("should register project to hub via PR", async () => {
       const context = createMockContext();
+      
+      // Mock GitHub API calls for registration
+      const mockGetContent = vi.fn()
+        .mockResolvedValueOnce({ 
+          data: { content: Buffer.from("[]").toString("base64") }
+        })
+        .mockResolvedValueOnce({ 
+          data: { sha: "file-sha-123" }
+        });
+      
+      const mockGetBranch = vi.fn().mockResolvedValue({
+        data: { commit: { sha: "main-sha-123" } }
+      });
+      
+      const mockCreateRef = vi.fn().mockResolvedValue({});
+      const mockCreateOrUpdateFile = vi.fn().mockResolvedValue({});
+      const mockCreatePull = vi.fn().mockResolvedValue({
+        data: { 
+          number: 42, 
+          html_url: "https://github.com/ACNet-AI/mcp-servers-hub/pull/42" 
+        }
+      });
+
+      // Set up the full mock structure
+      context.octokit.rest = {
+        repos: {
+          getContent: mockGetContent,
+          getBranch: mockGetBranch,
+          createOrUpdateFileContents: mockCreateOrUpdateFile,
+        },
+        git: {
+          createRef: mockCreateRef,
+        },
+        pulls: {
+          create: mockCreatePull,
+        },
+      };
+
       const projectInfo = {
         name: "test-mcp-server",
         description: "Test MCP server",
         repository: "https://github.com/testuser/test-mcp-server",
         version: "1.0.0",
-        language: "typescript",
-        category: "server",
+        language: "typescript" as const,
+        category: "server" as const,
         tags: ["mcp", "server"],
       };
 
       const result = await registerToHub(context, projectInfo);
 
       expect(result.success).toBe(true);
-      expect(result.url).toBe("https://mcphub.io/servers/test-mcp-server");
+      expect(result.url).toBe("https://github.com/ACNet-AI/mcp-servers-hub/pull/42");
       expect(context.log.info).toHaveBeenCalledWith(
         expect.stringContaining(
-          "Attempting to register test-mcp-server to MCP Hub"
+          "Attempting to register test-mcp-server to MCP Servers Hub"
         )
       );
+      expect(mockCreatePull).toHaveBeenCalledWith(
+        expect.objectContaining({
+          owner: "ACNet-AI",
+          repo: "mcp-servers-hub",
+          title: expect.stringContaining("🚀 Register test-mcp-server"),
+        })
+      );
+    });
+
+    test("should handle registration errors gracefully", async () => {
+      const context = createMockContext();
+      
+      // Mock GitHub API error - first call fails, causing registration to fail
+      const mockGetContentError = vi.fn().mockRejectedValue(new Error("API Error"));
+      
+      context.octokit.rest = {
+        repos: {
+          getContent: mockGetContentError,
+          getBranch: vi.fn().mockResolvedValue({ data: { commit: { sha: "test" } } }),
+          createOrUpdateFileContents: vi.fn().mockResolvedValue({}),
+        },
+        git: {
+          createRef: vi.fn().mockResolvedValue({}),
+        },
+        pulls: {
+          create: vi.fn().mockResolvedValue({ data: { number: 1, html_url: "test" } }),
+        },
+      };
+
+      const projectInfo = {
+        name: "test-server",
+        description: "Test server",
+        repository: "https://github.com/testuser/test-server",
+        version: "1.0.0",
+        language: "python" as const,
+        category: "tools" as const,
+        tags: ["test"],
+      };
+
+      const result = await registerToHub(context, projectInfo);
+
+      expect(result.success).toBe(false);
+      expect(result.error).toContain("API Error");
+      expect(context.log.error).toHaveBeenCalled();
     });
   });
 

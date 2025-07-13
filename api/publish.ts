@@ -247,7 +247,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       message: `${language.charAt(0).toUpperCase() + language.slice(1)} project prepared for publishing`,
       projectInfo,
       repository: `https://github.com/${owner}/${repoName}`,
-      registrationUrl: `https://mcphub.io/servers/${projectInfo.name}`,
+      registrationUrl: `https://github.com/ACNet-AI/mcp-servers-hub`,
       timestamp: new Date().toISOString(),
       language: language,
     };

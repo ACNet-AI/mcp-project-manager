@@ -8,6 +8,7 @@ import {
   createComment,
   createIssue,
   reportError,
+  registerToHub,
   LABELS,
 } from "./utils/github.js";
 import {
@@ -144,7 +145,11 @@ Once these issues are resolved, push your changes to trigger automatic re-valida
           const summary = generateRegistrationSummary(projectInfo);
           const relevance = validateMCPRelevance(project);
 
-          const successBody = `## 🎉 Congratulations!
+          // Actually perform the registration
+          context.log.info("🚀 Starting automatic registration process...");
+          const registrationResult = await registerToHub(context, projectInfo);
+
+          let successBody = `## 🎉 Congratulations!
 
 Your MCP Factory project meets all requirements for automatic registration.
 
@@ -163,17 +168,50 @@ ${summary}
 - **Relevant**: ${relevance.isRelevant ? "✅ Yes" : "❌ No"}
 - **Reasons**: ${relevance.reasons.join(", ")}
 
-### 🚀 Next Steps:
-This project will be automatically submitted to the MCP Hub registry. You will receive notification once the registration is processed.
+### 🚀 Registration Status:`;
+
+          if (registrationResult.success) {
+            successBody += `
+✅ **Registration PR Created Successfully!**
+
+Your project has been automatically submitted to the MCP Servers Hub registry:
+🔗 **Registration PR**: ${registrationResult.url}
+
+The registration is now pending review by the MCP community. You will be notified once the PR is merged and your project is officially listed in the registry.
+
+### Next Steps:
+1. Monitor the registration PR for any feedback
+2. Respond to any review comments if needed
+3. Your project will be publicly available once the PR is approved`;
+          } else {
+            successBody += `
+❌ **Automatic Registration Failed**
+
+Unfortunately, the automatic registration encountered an error:
+**Error**: ${registrationResult.error}
+
+### Manual Registration Required:
+Please submit your project manually to the MCP Servers Hub:
+🔗 **Repository**: https://github.com/ACNet-AI/mcp-servers-hub
+📝 **Instructions**: Follow the contribution guidelines in the repository
+
+Your project meets all quality requirements and should be accepted for manual registration.`;
+          }
+
+          successBody += `
 
 ---
 *This issue was automatically created by the MCP Project Manager.*`;
 
           await createIssue(
             context,
-            "🚀 MCP Factory Project Ready for Registration",
+            registrationResult.success 
+              ? "🚀 MCP Factory Project Registration Submitted"
+              : "⚠️ MCP Factory Project Registration Failed",
             successBody,
-            [LABELS.REGISTRATION_READY]
+            registrationResult.success 
+              ? [LABELS.REGISTRATION_READY] 
+              : [LABELS.REGISTRATION_PENDING]
           );
         } else {
           const registrationIssueBody = `## Registration Requirements Not Met
