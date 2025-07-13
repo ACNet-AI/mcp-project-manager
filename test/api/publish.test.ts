@@ -9,10 +9,20 @@ vi.mock("../../src/utils/registry", () => ({
   validateRegistrationData: vi.fn(),
 }));
 
+vi.mock("../../src/utils/validation", () => ({
+  parsePyProjectToml: vi.fn(),
+  validateMCPFactoryProject: vi.fn(),
+}));
+
 import {
   extractProjectInfo,
   validateRegistrationData,
 } from "../../src/utils/registry";
+
+import {
+  parsePyProjectToml,
+  validateMCPFactoryProject,
+} from "../../src/utils/validation";
 
 describe("Publish API", () => {
   beforeEach(() => {
@@ -78,7 +88,135 @@ describe("Publish API", () => {
     expect(responseData.repository).toBe(
       "https://github.com/unknown/test-mcp-server"
     );
-    expect(responseData.message).toBe("Project prepared for publishing");
+    expect(responseData.message).toBe("Typescript project prepared for publishing");
+  });
+
+  test("should handle valid Python MCP Factory project", async () => {
+    const mockRequest = {
+      method: "POST",
+      headers: {
+        "content-type": "application/json",
+      },
+      query: {},
+      cookies: {},
+      body: {
+        projectName: "test-mcp-factory",
+        description: "A test MCP Factory server",
+        version: "1.0.0",
+        language: "python",
+        files: [
+          {
+            path: "pyproject.toml",
+            content: `[project]
+name = "test-mcp-factory"
+description = "A test MCP Factory server"
+version = "1.0.0"
+dependencies = ["mcp-factory"]`,
+          },
+          {
+            path: "server.py",
+            content: "# MCP Factory server",
+          },
+          {
+            path: "README.md",
+            content: "# Test MCP Factory Server",
+          },
+        ],
+      },
+    } as VercelRequest;
+
+    const mockResponse = createResponse() as any;
+
+    // Mock pyproject.toml parsing
+    (parsePyProjectToml as any).mockReturnValue({
+      project: {
+        name: "test-mcp-factory",
+        description: "A test MCP Factory server",
+        version: "1.0.0",
+        dependencies: ["mcp-factory"],
+      },
+    });
+
+    // Mock Python project validation
+    (validateMCPFactoryProject as any).mockReturnValue({
+      isValid: true,
+      errors: [],
+    });
+
+    await publishHandler(mockRequest, mockResponse);
+
+    expect(mockResponse.statusCode).toBe(200);
+    const responseData = JSON.parse(mockResponse._getData());
+    expect(responseData.success).toBe(true);
+    expect(responseData.language).toBe("python");
+    expect(responseData.message).toBe("Python project prepared for publishing");
+    expect(responseData.projectInfo.type).toBe("mcp-factory");
+  });
+
+  test("should reject Python project without pyproject.toml", async () => {
+    const mockRequest = {
+      method: "POST",
+      headers: {
+        "content-type": "application/json",
+      },
+      query: {},
+      cookies: {},
+      body: {
+        projectName: "test-python-server",
+        description: "A test Python server",
+        version: "1.0.0",
+        language: "python",
+        files: [
+          {
+            path: "server.py",
+            content: "# Python server",
+          },
+          {
+            path: "README.md",
+            content: "# Test Python Server",
+          },
+        ],
+      },
+    } as VercelRequest;
+
+    const mockResponse = createResponse() as any;
+
+    await publishHandler(mockRequest, mockResponse);
+
+    expect(mockResponse.statusCode).toBe(400);
+    const responseData = JSON.parse(mockResponse._getData());
+    expect(responseData.error).toBe("No valid pyproject.toml found for Python project");
+  });
+
+  test("should reject unsupported language", async () => {
+    const mockRequest = {
+      method: "POST",
+      headers: {
+        "content-type": "application/json",
+      },
+      query: {},
+      cookies: {},
+      body: {
+        projectName: "test-server",
+        description: "A test server",
+        version: "1.0.0",
+        language: "java",
+        files: [
+          {
+            path: "pom.xml",
+            content: "<project></project>",
+          },
+        ],
+      },
+    } as VercelRequest;
+
+    const mockResponse = createResponse() as any;
+
+    await publishHandler(mockRequest, mockResponse);
+
+    expect(mockResponse.statusCode).toBe(400);
+    const responseData = JSON.parse(mockResponse._getData());
+    expect(responseData.error).toContain("Unsupported project language: java");
   });
 
   test("should reject invalid request", async () => {
@@ -150,7 +288,7 @@ describe("Publish API", () => {
 
     expect(mockResponse.statusCode).toBe(400);
     const responseData = JSON.parse(mockResponse._getData());
-    expect(responseData.error).toBe("Invalid project data");
+    expect(responseData.error).toBe("Invalid Node.js project data");
     expect(responseData.details).toEqual(["Project description is required"]);
   });
 
@@ -182,7 +320,7 @@ describe("Publish API", () => {
 
     expect(mockResponse.statusCode).toBe(400);
     const responseData = JSON.parse(mockResponse._getData());
-    expect(responseData.error).toBe("No valid package.json found");
+    expect(responseData.error).toBe("No valid package.json found for Node.js project");
   });
 
   test("should handle invalid JSON in package.json", async () => {
