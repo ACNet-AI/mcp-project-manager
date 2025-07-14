@@ -28,9 +28,9 @@ export default async function handler(req: VercelRequest, res: VercelResponse): 
         "POST /api/github/webhooks - GitHub Webhook endpoint",
       ],
       github_app: {
-        app_id: process.env.GITHUB_APP_ID ? "configured" : "missing",
-        webhook_secret: process.env.GITHUB_WEBHOOK_SECRET ? "configured" : "missing",
-        private_key: process.env.GITHUB_PRIVATE_KEY ? "configured" : "missing",
+            app_id: process.env.APP_ID ? "configured" : "missing",
+    webhook_secret: process.env.WEBHOOK_SECRET ? "configured" : "missing",
+    private_key: process.env.PRIVATE_KEY ? "configured" : "missing",
       },
     })
   );

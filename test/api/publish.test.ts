@@ -1,7 +1,7 @@
 import { describe, test, expect, beforeEach, vi } from "vitest";
 import { createRequest, createResponse } from "node-mocks-http";
 import type { VercelRequest, VercelResponse } from "@vercel/node";
-import publishHandler from "../../api/publish.js";
+import publishHandler from "../../api/publish";
 
 // Mock the dependencies
 vi.mock("../../src/utils/registry", () => ({

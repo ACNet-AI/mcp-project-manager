@@ -57,16 +57,44 @@ npm start
 ### Environment Variables Configuration
 
 ```bash
-# GitHub App Configuration
-GITHUB_APP_ID=your_app_id
+# GitHub App Configuration (Probot Standard)
+APP_ID=your_app_id
+PRIVATE_KEY="-----BEGIN RSA PRIVATE KEY-----\nyour_private_key_content\n-----END RSA PRIVATE KEY-----"
+WEBHOOK_SECRET=your_webhook_secret
+
+# Optional: GitHub OAuth (for additional features)
 GITHUB_CLIENT_ID=your_client_id
 GITHUB_CLIENT_SECRET=your_client_secret
-GITHUB_WEBHOOK_SECRET=your_webhook_secret
-GITHUB_PRIVATE_KEY="-----BEGIN RSA PRIVATE KEY-----\nyour_private_key_content\n-----END RSA PRIVATE KEY-----"
 
 # Production Environment Configuration
 NODE_ENV=production
 ```
+
+### GitHub App Permissions Required
+
+The GitHub App needs the following permissions to function properly:
+
+#### Repository Permissions:
+- **Contents**: `Write` - Required to create and modify repository files
+- **Metadata**: `Read` - Required to access repository information
+- **Issues**: `Write` - Required to create and manage issues
+- **Pull Requests**: `Write` - Required to create and manage pull requests
+
+#### Organization Permissions:
+- **Administration**: `Write` - Required to create repositories in organizations
+- **Members**: `Read` - Required to read organization membership information
+
+#### Account Permissions:
+- **Email addresses**: `Read` - Required to access user email information (optional)
+
+#### Webhook Events:
+- **Repository** - To respond to repository creation and changes
+- **Issues** - To respond to issue events
+- **Pull Requests** - To respond to pull request events
+- **Push** - To respond to push events
+- **Release** - To respond to release events
+
+**Important**: Repository creation is only supported for organization accounts. Personal accounts require additional configuration and permissions.
 
 ## 🐳 Docker Deployment
 
@@ -76,9 +104,9 @@ docker build -t mcp-project-manager .
 
 # 2. Run container
 docker run -d \
-  -e GITHUB_APP_ID=<app-id> \
-  -e GITHUB_PRIVATE_KEY=<pem-value> \
-  -e GITHUB_WEBHOOK_SECRET=<webhook-secret> \
+  -e APP_ID=<app-id> \
+  -e PRIVATE_KEY=<pem-value> \
+  -e WEBHOOK_SECRET=<webhook-secret> \
   -p 3000:3000 \
   mcp-project-manager
 ```
