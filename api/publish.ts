@@ -55,13 +55,34 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     if (publishRequest.projectType && publishRequest.projectData) {
       projectName = publishRequest.projectData.name;
       projectLanguage = publishRequest.projectData.language;
-      projectFiles = publishRequest.projectData.files || [];
+      
+      // Ensure files is always an array
+      const rawFiles = publishRequest.projectData.files || [];
+      if (Array.isArray(rawFiles)) {
+        projectFiles = rawFiles;
+      } else {
+        // Convert object to array format: { "path1": "content1", "path2": "content2" } -> [{ path: "path1", content: "content1" }, ...]
+        projectFiles = Object.entries(rawFiles).map(([path, content]) => ({
+          path,
+          content
+        }));
+      }
     }
     // Legacy format: { projectName, language, files }
     else if (publishRequest.language && publishRequest.files) {
       projectName = publishRequest.projectName;
       projectLanguage = publishRequest.language;
-      projectFiles = publishRequest.files;
+      
+      // Ensure files is always an array
+      if (Array.isArray(publishRequest.files)) {
+        projectFiles = publishRequest.files;
+      } else {
+        // Convert object to array format
+        projectFiles = Object.entries(publishRequest.files).map(([path, content]) => ({
+          path,
+          content
+        }));
+      }
     }
     else {
       res.statusCode = 400;
