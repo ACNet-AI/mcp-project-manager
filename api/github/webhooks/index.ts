@@ -16,4 +16,4 @@ const middleware = createNodeMiddleware(app, {
 // Vercel serverless function handler
 export default async function handler(req: VercelRequest, res: VercelResponse) {
   return middleware(req, res);
-} 
+}

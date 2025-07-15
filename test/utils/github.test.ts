@@ -308,27 +308,28 @@ describe("GitHub Utils", () => {
   describe("registerToHub", () => {
     test("should register project to hub via PR", async () => {
       const context = createMockContext();
-      
+
       // Mock GitHub API calls for registration
-      const mockGetContent = vi.fn()
-        .mockResolvedValueOnce({ 
-          data: { content: Buffer.from("[]").toString("base64") }
+      const mockGetContent = vi
+        .fn()
+        .mockResolvedValueOnce({
+          data: { content: Buffer.from("[]").toString("base64") },
         })
-        .mockResolvedValueOnce({ 
-          data: { sha: "file-sha-123" }
+        .mockResolvedValueOnce({
+          data: { sha: "file-sha-123" },
         });
-      
+
       const mockGetBranch = vi.fn().mockResolvedValue({
-        data: { commit: { sha: "main-sha-123" } }
+        data: { commit: { sha: "main-sha-123" } },
       });
-      
+
       const mockCreateRef = vi.fn().mockResolvedValue({});
       const mockCreateOrUpdateFile = vi.fn().mockResolvedValue({});
       const mockCreatePull = vi.fn().mockResolvedValue({
-        data: { 
-          number: 42, 
-          html_url: "https://github.com/ACNet-AI/mcp-servers-hub/pull/42" 
-        }
+        data: {
+          number: 42,
+          html_url: "https://github.com/ACNet-AI/mcp-servers-hub/pull/42",
+        },
       });
 
       // Set up the full mock structure
@@ -359,7 +360,9 @@ describe("GitHub Utils", () => {
       const result = await registerToHub(context, projectInfo);
 
       expect(result.success).toBe(true);
-      expect(result.url).toBe("https://github.com/ACNet-AI/mcp-servers-hub/pull/42");
+      expect(result.url).toBe(
+        "https://github.com/ACNet-AI/mcp-servers-hub/pull/42"
+      );
       expect(context.log.info).toHaveBeenCalledWith(
         expect.stringContaining(
           "Attempting to register test-mcp-server to MCP Servers Hub"
@@ -376,21 +379,27 @@ describe("GitHub Utils", () => {
 
     test("should handle registration errors gracefully", async () => {
       const context = createMockContext();
-      
+
       // Mock GitHub API error - first call fails, causing registration to fail
-      const mockGetContentError = vi.fn().mockRejectedValue(new Error("API Error"));
-      
+      const mockGetContentError = vi
+        .fn()
+        .mockRejectedValue(new Error("API Error"));
+
       context.octokit.rest = {
         repos: {
           getContent: mockGetContentError,
-          getBranch: vi.fn().mockResolvedValue({ data: { commit: { sha: "test" } } }),
+          getBranch: vi
+            .fn()
+            .mockResolvedValue({ data: { commit: { sha: "test" } } }),
           createOrUpdateFileContents: vi.fn().mockResolvedValue({}),
         },
         git: {
           createRef: vi.fn().mockResolvedValue({}),
         },
         pulls: {
-          create: vi.fn().mockResolvedValue({ data: { number: 1, html_url: "test" } }),
+          create: vi
+            .fn()
+            .mockResolvedValue({ data: { number: 1, html_url: "test" } }),
         },
       };
 

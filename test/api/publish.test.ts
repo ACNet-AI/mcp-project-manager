@@ -88,7 +88,9 @@ describe("Publish API", () => {
     expect(responseData.repository).toBe(
       "https://github.com/unknown/test-mcp-server"
     );
-    expect(responseData.message).toBe("Typescript project prepared for publishing");
+    expect(responseData.message).toBe(
+      "Typescript project prepared for publishing"
+    );
   });
 
   test("should handle valid Python MCP Factory project", async () => {
@@ -185,7 +187,9 @@ dependencies = ["mcp-factory"]`,
 
     expect(mockResponse.statusCode).toBe(400);
     const responseData = JSON.parse(mockResponse._getData());
-    expect(responseData.error).toBe("No valid pyproject.toml found for Python project");
+    expect(responseData.error).toBe(
+      "No valid pyproject.toml found for Python project"
+    );
   });
 
   test("should reject unsupported language", async () => {
@@ -320,7 +324,9 @@ dependencies = ["mcp-factory"]`,
 
     expect(mockResponse.statusCode).toBe(400);
     const responseData = JSON.parse(mockResponse._getData());
-    expect(responseData.error).toBe("No valid package.json found for Node.js project");
+    expect(responseData.error).toBe(
+      "No valid package.json found for Node.js project"
+    );
   });
 
   test("should handle invalid JSON in package.json", async () => {

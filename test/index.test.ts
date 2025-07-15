@@ -160,7 +160,8 @@ build-backend = "setuptools.build_meta"`
 
   afterEach(() => {
     if (!nock.isDone()) {
-      console.log("Pending mocks:", nock.pendingMocks());
+      // Debug: Check pending mocks if needed
+      // console.log("Pending mocks:", nock.pendingMocks());
     }
     nock.cleanAll();
     nock.enableNetConnect();

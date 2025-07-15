@@ -62,17 +62,16 @@ APP_ID=your_app_id
 PRIVATE_KEY="-----BEGIN RSA PRIVATE KEY-----\nyour_private_key_content\n-----END RSA PRIVATE KEY-----"
 WEBHOOK_SECRET=your_webhook_secret
 
-# Optional: GitHub OAuth (for additional features)
-GITHUB_CLIENT_ID=your_client_id
-GITHUB_CLIENT_SECRET=your_client_secret
+# GitHub OAuth Configuration (Required for Personal Account Repository Creation)
+GITHUB_CLIENT_ID=your_github_app_client_id
+GITHUB_CLIENT_SECRET=your_github_app_client_secret
+GITHUB_REDIRECT_URI=https://mcp-project-manager.vercel.app/api/auth/callback
 
 # Production Environment Configuration
 NODE_ENV=production
 ```
 
 ### GitHub App Permissions Required
-
-The GitHub App needs the following permissions to function properly:
 
 #### Repository Permissions:
 - **Contents**: `Write` - Required to create and modify repository files
@@ -94,7 +93,49 @@ The GitHub App needs the following permissions to function properly:
 - **Push** - To respond to push events
 - **Release** - To respond to release events
 
-**Important**: Repository creation is only supported for organization accounts. Personal accounts require additional configuration and permissions.
+## 🔐 OAuth Flow for Personal Account Repository Creation
+
+### Overview
+To create repositories for personal GitHub accounts, the app uses GitHub's OAuth flow to obtain User Access Tokens. This is required because GitHub Apps cannot directly create repositories for personal accounts using Installation Access Tokens.
+
+### OAuth Flow Steps
+1. **User Authorization**: User visits `/api/auth/authorize` to initiate OAuth flow
+2. **GitHub Authorization**: User is redirected to GitHub for authorization
+3. **Callback Processing**: GitHub redirects back to `/api/auth/callback` with authorization code
+4. **Token Exchange**: Backend exchanges code for User Access Token
+5. **Repository Creation**: Use User Access Token to create personal repositories
+
+### Key API Endpoints
+
+#### `GET /api/auth/authorize`
+Initiates OAuth authorization flow.
+- **Query Parameters**: `project_name` (optional)
+- **Response**: Returns authorization URL
+
+#### `GET /api/auth/callback`
+Handles OAuth callback from GitHub.
+- **Query Parameters**: `code` (required), `state` (required)
+- **Response**: Returns session information
+
+#### `GET /api/auth/status`
+Checks user authorization status.
+- **Headers**: `session-id` (required)
+- **Response**: Returns authorization status
+
+#### `POST /api/publish`
+Creates repository using User Access Token.
+- **Headers**: `session-id` (required), `Content-Type: application/json`
+- **Body**: Project data including name, description, language, and files
+- **Response**: Returns repository information or auth requirement
+
+### Testing OAuth Flow
+Visit `/api/test-oauth` for a complete testing interface that guides you through the OAuth process.
+
+### GitHub App Configuration Requirements
+For OAuth flow to work, ensure your GitHub App has:
+- **Callback URL**: `https://your-domain.com/api/auth/callback`
+- **Request user authorization during installation**: ✅ Enabled
+- **Required Environment Variables**: See configuration section above
 
 ## 🐳 Docker Deployment
 
@@ -147,8 +188,8 @@ npm run dev
 ### POST `/api/publish`
 Publish MCP project to GitHub and register to Hub
 
-```javascript
-// Request example
+**Request Example:**
+```json
 {
   "projectName": "my-mcp-server",
   "description": "An excellent MCP server",
@@ -164,8 +205,10 @@ Publish MCP project to GitHub and register to Hub
     }
   ]
 }
+```
 
-// Response example
+**Response Example:**
+```json
 {
   "success": true,
   "repoUrl": "https://github.com/user/my-mcp-server",
@@ -195,7 +238,6 @@ This project is licensed under the [MIT](LICENSE) License © 2025 ACNet AI
 - [Probot Framework Documentation](https://probot.github.io/)
 - [MCP Factory](https://github.com/ACNet-AI/mcp-factory) - Factory framework for MCP server creation and management
 - [MCP Servers Hub](https://github.com/ACNet-AI/mcp-servers-hub) - Community registry for discovering and sharing MCP server projects
-
 
 ---
 

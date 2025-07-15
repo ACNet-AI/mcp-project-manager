@@ -66,8 +66,8 @@ export async function checkRepositoryExists(
   try {
     await context.octokit.repos.get({ owner, repo });
     return true;
-  } catch (error: any) {
-    if (error?.status === 404) {
+  } catch (error: unknown) {
+    if (error && typeof error === "object" && "status" in error && error.status === 404) {
       return false;
     }
     throw error;
@@ -214,7 +214,9 @@ export async function registerToHub(
       });
 
       if ("content" in fileData) {
-        const content = Buffer.from(fileData.content, "base64").toString("utf-8");
+        const content = Buffer.from(fileData.content, "base64").toString(
+          "utf-8"
+        );
         currentRegistry = JSON.parse(content);
       }
     } catch (error) {
@@ -237,7 +239,9 @@ export async function registerToHub(
       repository: projectInfo.repository,
       tags: projectInfo.tags || [],
       addedAt: new Date().toISOString(),
-      ...(projectInfo.factoryVersion && { factoryVersion: projectInfo.factoryVersion }),
+      ...(projectInfo.factoryVersion && {
+        factoryVersion: projectInfo.factoryVersion,
+      }),
     };
 
     let action = "add";
@@ -277,12 +281,14 @@ export async function registerToHub(
       });
 
       // Update registry.json on new branch
-      const { data: currentFile } = await context.octokit.rest.repos.getContent({
-        owner: hubOwner,
-        repo: hubRepo,
-        path: registryPath,
-        ref: branchName,
-      });
+      const { data: currentFile } = await context.octokit.rest.repos.getContent(
+        {
+          owner: hubOwner,
+          repo: hubRepo,
+          path: registryPath,
+          ref: branchName,
+        }
+      );
 
       let fileSha = "";
       if ("sha" in currentFile) {
@@ -353,7 +359,6 @@ This ${action === "add" ? "new MCP project has been automatically detected and v
         success: true,
         url: pullRequest.html_url,
       };
-
     } catch (prError) {
       context.log.error(`❌ Failed to create registration PR: ${prError}`);
       return {
@@ -361,7 +366,6 @@ This ${action === "add" ? "new MCP project has been automatically detected and v
         error: `Failed to create registration PR: ${prError instanceof Error ? prError.message : String(prError)}`,
       };
     }
-
   } catch (error) {
     context.log.error(`❌ Project registration failed: ${error}`);
     return {

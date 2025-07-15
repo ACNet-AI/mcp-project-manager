@@ -30,7 +30,7 @@ function parseMCPFactoryPyProjectToml(
     const parsed = TOML.parse(content) as MCPFactoryPyProject;
     return parsed;
   } catch (error) {
-    console.error("Failed to parse pyproject.toml:", error);
+    // Failed to parse pyproject.toml - not a critical error in validation context
     return null;
   }
 }
@@ -154,7 +154,7 @@ export async function detectMCPFactoryProject(
       projectData: isMCPProject ? projectData : undefined,
     };
   } catch (error) {
-    console.error("Error detecting MCP Factory project:", error);
+    // Error detecting MCP Factory project - return safe defaults
     return {
       isMCPProject: false,
       confidence: 0,
@@ -405,7 +405,7 @@ export async function getRepositoryFileContent(
 
     return null;
   } catch (error) {
-    console.error(`Failed to get file content for ${path}:`, error);
+    // Failed to get file content - return null for optional file
     return null;
   }
 }
@@ -442,7 +442,7 @@ export function parsePyProjectToml(content: string): PyProjectConfig | null {
     const parsed = TOML.parse(content) as PyProjectConfig;
     return parsed;
   } catch (error) {
-    console.error("Failed to parse pyproject.toml:", error);
+    // Failed to parse pyproject.toml - return null for invalid format
     return null;
   }
 }
@@ -488,7 +488,7 @@ export function parseSetupPy(content: string): PythonSetupConfig | null {
 
     return config;
   } catch (error) {
-    console.error("Failed to parse setup.py:", error);
+    // Failed to parse setup.py - return null for invalid format
     return null;
   }
 }
@@ -642,7 +642,7 @@ export async function detectProjectConfig(
     ) {
       throw error;
     }
-    console.error("Error detecting project config:", error);
+    // Error detecting project config - return null for invalid project
     return null;
   }
 }

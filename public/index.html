@@ -11,6 +11,7 @@
             padding: 20px;
             background-color: #f6f8fa;
             color: #24292f;
+            line-height: 1.6;
         }
         .container {
             max-width: 800px;
@@ -22,8 +23,9 @@
         }
         h1 {
             color: #0366d6;
-            border-bottom: 1px solid #e1e4e8;
-            padding-bottom: 10px;
+            border-bottom: 2px solid #e1e4e8;
+            padding-bottom: 15px;
+            margin-bottom: 30px;
         }
         .badge {
             display: inline-block;
@@ -33,61 +35,93 @@
             border-radius: 4px;
             font-size: 12px;
             font-weight: 600;
+            margin-left: 10px;
         }
-        .api-section {
-            background: #f6f8fa;
+        .feature-card {
+            background: #f8f9fa;
             padding: 20px;
             border-radius: 6px;
+            border: 1px solid #e1e4e8;
             margin: 20px 0;
+        }
+        .feature-card h3 {
+            margin-top: 0;
+            color: #0366d6;
+        }
+        .button {
+            display: inline-block;
+            background: #0366d6;
+            color: white;
+            padding: 10px 20px;
+            border-radius: 6px;
+            text-decoration: none;
+            font-weight: 600;
+            margin: 10px 10px 10px 0;
+        }
+        .button:hover {
+            background: #0256cc;
+        }
+        .button.primary {
+            background: #28a745;
+        }
+        .button.primary:hover {
+            background: #218838;
         }
         code {
             background: #f6f8fa;
-            padding: 2px 4px;
+            padding: 2px 6px;
             border-radius: 3px;
             font-family: 'Monaco', 'Menlo', monospace;
+            font-size: 13px;
         }
         .footer {
             margin-top: 40px;
             text-align: center;
             color: #6a737d;
             font-size: 14px;
+            border-top: 1px solid #e1e4e8;
+            padding-top: 20px;
         }
     </style>
 </head>
 <body>
     <div class="container">
-        <h1>MCP Project Manager <span class="badge">ACTIVE</span></h1>
+        <h1>
+            🚀 MCP Project Manager
+            <span class="badge">OAuth Ready</span>
+        </h1>
         
-        <p>A GitHub App for automatically managing Model Context Protocol (MCP) projects. This service monitors repositories for MCP-related content and helps with project registration and management.</p>
+        <p>GitHub OAuth-based MCP project repository creation service. Create GitHub repositories for personal accounts using GitHub OAuth User Access Token.</p>
         
-        <h2>Features</h2>
-        <ul>
-            <li>🔍 Automatic MCP project detection</li>
-            <li>📋 Project validation and scoring</li>
-            <li>🚀 Automated registration to MCP Hub</li>
-            <li>📊 Issue tracking for project status</li>
-            <li>🔗 GitHub webhooks integration</li>
-        </ul>
-        
-        <div class="api-section">
-            <h3>API Endpoints</h3>
-            <p><strong>GET</strong> <code>/api/health</code> - Health check endpoint for monitoring</p>
-            <p><strong>GET</strong> <code>/api/test</code> - Test endpoint with detailed information</p>
-            <p><strong>POST</strong> <code>/api/publish</code> - Manually trigger project registration</p>
-            <p><strong>POST</strong> <code>/api/github/webhooks</code> - GitHub webhook handler</p>
+        <div class="feature-card">
+            <h3>🔐 OAuth Authentication</h3>
+            <p>Complete GitHub OAuth 2.0 flow with User Access Token for personal repository creation.</p>
+            <a href="/api/auth/authorize" class="button primary">Start OAuth Flow</a>
+            <a href="/api/test-oauth" class="button">Test Interface</a>
         </div>
         
-        <h2>Supported Events</h2>
-        <ul>
-            <li>Repository push events</li>
-            <li>Pull request events</li>
-            <li>Release events</li>
-            <li>Issue events</li>
-            <li>Installation events</li>
-        </ul>
+        <div class="feature-card">
+            <h3>📡 API Endpoints</h3>
+            <p><strong>GET</strong> <code>/api/auth/authorize</code> - Generate GitHub OAuth URL</p>
+            <p><strong>GET</strong> <code>/api/auth/callback</code> - Handle OAuth callback</p>
+            <p><strong>GET</strong> <code>/api/auth/status</code> - Check authorization status</p>
+            <p><strong>POST</strong> <code>/api/publish</code> - Create GitHub repository</p>
+            <p><strong>GET</strong> <code>/api/test-oauth</code> - OAuth testing interface</p>
+        </div>
+        
+        <div class="feature-card">
+            <h3>🛠️ Quick Start</h3>
+            <p>1. <strong>Authorize:</strong> Visit <code>/api/auth/authorize</code> to start OAuth flow</p>
+            <p>2. <strong>Get Session:</strong> Complete GitHub authorization to get session ID</p>
+            <p>3. <strong>Create Repository:</strong> Use <code>/api/publish</code> with session ID</p>
+        </div>
         
         <div class="footer">
-            <p>Powered by <a href="https://probot.github.io/">Probot</a> | Deployed on <a href="https://vercel.com/">Vercel</a></p>
+            <p>
+                <strong>Tech Stack:</strong> GitHub OAuth | Vercel | TypeScript | Octokit<br>
+                <strong>Deployment:</strong> <a href="https://vercel.com/" target="_blank">Vercel Platform</a> | 
+                <strong>Developer:</strong> ACNet-AI
+            </p>
         </div>
     </div>
 </body>

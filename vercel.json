@@ -1,5 +1,7 @@
 {
   "buildCommand": "npm run build",
+  "public": true,
+  "cleanUrls": true,
   "headers": [
     {
       "source": "/api/(.*)",
@@ -7,6 +9,14 @@
         {
           "key": "Access-Control-Allow-Origin",
           "value": "*"
+        },
+        {
+          "key": "Access-Control-Allow-Methods",
+          "value": "GET, POST, PUT, DELETE, OPTIONS"
+        },
+        {
+          "key": "Access-Control-Allow-Headers",
+          "value": "X-Requested-With, Content-Type, Authorization, x-vercel-protection-bypass"
         }
       ]
     }

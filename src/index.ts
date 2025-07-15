@@ -24,12 +24,11 @@ export default (app: Probot) => {
     const { installation } = context.payload;
 
     const account = installation.account;
-    const accountLogin = account && "login" in account ? account.login : "unknown";
+    const accountLogin =
+      account && "login" in account ? account.login : "unknown";
     const accountType = account && "type" in account ? account.type : undefined;
-    
-    context.log.info(
-      `🎉 MCP Project Manager installed for ${accountLogin}`
-    );
+
+    context.log.info(`🎉 MCP Project Manager installed for ${accountLogin}`);
 
     try {
       if (accountType === "Organization") {
@@ -62,7 +61,7 @@ export default (app: Probot) => {
 
       // Detect MCP Factory project
       const detectionResult = await detectMCPFactoryProject(
-        context.octokit as any,
+        context.octokit,
         repository.owner.login,
         repository.name,
         ref
@@ -205,12 +204,12 @@ Your project meets all quality requirements and should be accepted for manual re
 
           await createIssue(
             context,
-            registrationResult.success 
+            registrationResult.success
               ? "🚀 MCP Factory Project Registration Submitted"
               : "⚠️ MCP Factory Project Registration Failed",
             successBody,
-            registrationResult.success 
-              ? [LABELS.REGISTRATION_READY] 
+            registrationResult.success
+              ? [LABELS.REGISTRATION_READY]
               : [LABELS.REGISTRATION_PENDING]
           );
         } else {
