@@ -64,7 +64,9 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
   cleanupExpiredSessions();
 
-  const { code, state } = req.query;
+  const query = req.query || {};
+  const code = query.code as string;
+  const state = query.state as string;
 
   if (!code || !state) {
     res.statusCode = 400;
