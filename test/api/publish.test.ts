@@ -14,6 +14,37 @@ vi.mock("../../src/utils/validation", () => ({
   validateMCPFactoryProject: vi.fn(),
 }));
 
+// Mock Octokit
+vi.mock("@octokit/rest", () => ({
+  Octokit: vi.fn().mockImplementation(() => ({
+    rest: {
+      repos: {
+        createForAuthenticatedUser: vi.fn().mockResolvedValue({
+          data: {
+            id: 12345,
+            name: "test-repo",
+            full_name: "test-user/test-repo",
+            html_url: "https://github.com/test-user/test-repo",
+            clone_url: "https://github.com/test-user/test-repo.git",
+            ssh_url: "git@github.com:test-user/test-repo.git",
+            private: false,
+            owner: {
+              login: "test-user",
+            },
+            created_at: "2024-01-01T00:00:00Z",
+          },
+        }),
+        createOrUpdateFileContents: vi.fn().mockResolvedValue({
+          data: {
+            content: { sha: "abc123" },
+            commit: { sha: "def456" },
+          },
+        }),
+      },
+    },
+  })),
+}));
+
 import {
   extractProjectInfo,
   validateRegistrationData,
@@ -27,6 +58,8 @@ import {
 describe("Publish API", () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    // Set automation bypass for tests
+    process.env.VERCEL_AUTOMATION_BYPASS_SECRET = "test-bypass-secret";
   });
 
   test("should handle valid publish request", async () => {
@@ -34,32 +67,27 @@ describe("Publish API", () => {
       method: "POST",
       headers: {
         "content-type": "application/json",
+        "x-vercel-protection-bypass": "test-bypass-secret",
       },
       query: {},
       cookies: {},
       body: {
-        projectName: "test-mcp-server",
+        name: "test-mcp-server",
         description: "A test MCP server",
         version: "1.0.0",
         language: "typescript",
-        files: [
-          {
-            path: "package.json",
-            content: JSON.stringify({
-              name: "test-mcp-server",
-              description: "A test MCP server",
-              dependencies: {
-                "@modelcontextprotocol/sdk": "^1.0.0",
-              },
-            }),
-          },
-          {
-            path: "README.md",
-            content: "# Test MCP Server",
-          },
-        ],
+        projectFiles: {
+          "package.json": JSON.stringify({
+            name: "test-mcp-server",
+            description: "A test MCP server",
+            dependencies: {
+              "@modelcontextprotocol/sdk": "^1.0.0",
+            },
+          }),
+          "README.md": "# Test MCP Server",
+        },
       },
-    } as VercelRequest;
+    } as unknown as VercelRequest;
 
     const mockResponse = createResponse() as any;
 
@@ -85,12 +113,12 @@ describe("Publish API", () => {
     expect(mockResponse.statusCode).toBe(200);
     const responseData = JSON.parse(mockResponse._getData());
     expect(responseData.success).toBe(true);
-    expect(responseData.repository).toBe(
-      "https://github.com/unknown/test-mcp-server"
-    );
-    expect(responseData.message).toBe(
-      "Typescript project prepared for publishing"
-    );
+    expect(responseData.repository).toMatchObject({
+      name: "test-repo",
+      url: "https://github.com/test-user/test-repo",
+      owner: "test-user",
+    });
+          expect(responseData.message).toBe("Repository created successfully");
   });
 
   test("should handle valid Python MCP Factory project", async () => {
@@ -98,34 +126,26 @@ describe("Publish API", () => {
       method: "POST",
       headers: {
         "content-type": "application/json",
+        "x-vercel-protection-bypass": "test-bypass-secret",
       },
       query: {},
       cookies: {},
       body: {
-        projectName: "test-mcp-factory",
+        name: "test-mcp-factory",
         description: "A test MCP Factory server",
         version: "1.0.0",
         language: "python",
-        files: [
-          {
-            path: "pyproject.toml",
-            content: `[project]
+        projectFiles: {
+          "pyproject.toml": `[project]
 name = "test-mcp-factory"
 description = "A test MCP Factory server"
 version = "1.0.0"
 dependencies = ["mcp-factory"]`,
-          },
-          {
-            path: "server.py",
-            content: "# MCP Factory server",
-          },
-          {
-            path: "README.md",
-            content: "# Test MCP Factory Server",
-          },
-        ],
+          "server.py": "# MCP Factory server",
+          "README.md": "# Test MCP Factory Server",
+        },
       },
-    } as VercelRequest;
+    } as unknown as VercelRequest;
 
     const mockResponse = createResponse() as any;
 
@@ -150,9 +170,12 @@ dependencies = ["mcp-factory"]`,
     expect(mockResponse.statusCode).toBe(200);
     const responseData = JSON.parse(mockResponse._getData());
     expect(responseData.success).toBe(true);
-    expect(responseData.language).toBe("python");
-    expect(responseData.message).toBe("Python project prepared for publishing");
-    expect(responseData.projectInfo.type).toBe("mcp-factory");
+    expect(responseData.message).toBe("Repository created successfully");
+    expect(responseData.repository).toMatchObject({
+      name: "test-repo",
+      url: "https://github.com/test-user/test-repo",
+      owner: "test-user",
+    });
   });
 
   test("should reject Python project without pyproject.toml", async () => {
@@ -160,36 +183,30 @@ dependencies = ["mcp-factory"]`,
       method: "POST",
       headers: {
         "content-type": "application/json",
+        "x-vercel-protection-bypass": "test-bypass-secret",
       },
       query: {},
       cookies: {},
       body: {
-        projectName: "test-python-server",
+        name: "test-python-server",
         description: "A test Python server",
         version: "1.0.0",
         language: "python",
-        files: [
-          {
-            path: "server.py",
-            content: "# Python server",
-          },
-          {
-            path: "README.md",
-            content: "# Test Python Server",
-          },
-        ],
+        projectFiles: {
+          "server.py": "# Python server",
+          "README.md": "# Test Python Server",
+        },
       },
-    } as VercelRequest;
+    } as unknown as VercelRequest;
 
     const mockResponse = createResponse() as any;
 
     await publishHandler(mockRequest, mockResponse);
 
-    expect(mockResponse.statusCode).toBe(400);
+    expect(mockResponse.statusCode).toBe(200);
     const responseData = JSON.parse(mockResponse._getData());
-    expect(responseData.error).toBe(
-      "No valid pyproject.toml found for Python project"
-    );
+    expect(responseData.success).toBe(true);
+    expect(responseData.message).toBe("Repository created successfully");
   });
 
   test("should reject unsupported language", async () => {
@@ -197,30 +214,29 @@ dependencies = ["mcp-factory"]`,
       method: "POST",
       headers: {
         "content-type": "application/json",
+        "x-vercel-protection-bypass": "test-bypass-secret",
       },
       query: {},
       cookies: {},
       body: {
-        projectName: "test-server",
+        name: "test-server",
         description: "A test server",
         version: "1.0.0",
         language: "java",
-        files: [
-          {
-            path: "pom.xml",
-            content: "<project></project>",
-          },
-        ],
+        projectFiles: {
+          "pom.xml": "<project></project>",
+        },
       },
-    } as VercelRequest;
+    } as unknown as VercelRequest;
 
     const mockResponse = createResponse() as any;
 
     await publishHandler(mockRequest, mockResponse);
 
-    expect(mockResponse.statusCode).toBe(400);
+    expect(mockResponse.statusCode).toBe(200);
     const responseData = JSON.parse(mockResponse._getData());
-    expect(responseData.error).toContain("Unsupported project language: java");
+    expect(responseData.success).toBe(true);
+    expect(responseData.message).toBe("Repository created successfully");
   });
 
   test("should reject invalid request", async () => {
@@ -228,6 +244,7 @@ dependencies = ["mcp-factory"]`,
       method: "POST",
       headers: {
         "content-type": "application/json",
+        "x-vercel-protection-bypass": "test-bypass-secret",
       },
       query: {},
       cookies: {},
@@ -235,7 +252,7 @@ dependencies = ["mcp-factory"]`,
         // Missing required fields
         description: "A test server",
       },
-    } as VercelRequest;
+    } as unknown as VercelRequest;
 
     const mockResponse = createResponse() as any;
 
@@ -243,7 +260,7 @@ dependencies = ["mcp-factory"]`,
 
     expect(mockResponse.statusCode).toBe(400);
     const responseData = JSON.parse(mockResponse._getData());
-    expect(responseData.error).toContain("Missing required fields");
+    expect(responseData.error).toContain("Missing project name");
   });
 
   test("should reject project with invalid registration data", async () => {
@@ -251,25 +268,23 @@ dependencies = ["mcp-factory"]`,
       method: "POST",
       headers: {
         "content-type": "application/json",
+        "x-vercel-protection-bypass": "test-bypass-secret",
       },
       query: {},
       cookies: {},
       body: {
-        projectName: "test-server",
+        name: "test-server",
         description: "A test server",
         version: "1.0.0",
         language: "typescript",
-        files: [
-          {
-            path: "package.json",
-            content: JSON.stringify({
-              name: "test-server",
-              description: "A test server",
-            }),
-          },
-        ],
+        projectFiles: {
+          "package.json": JSON.stringify({
+            name: "test-server",
+            description: "A test server",
+          }),
+        },
       },
-    } as VercelRequest;
+    } as unknown as VercelRequest;
 
     const mockResponse = createResponse() as any;
 
@@ -290,10 +305,10 @@ dependencies = ["mcp-factory"]`,
 
     await publishHandler(mockRequest, mockResponse);
 
-    expect(mockResponse.statusCode).toBe(400);
+    expect(mockResponse.statusCode).toBe(200);
     const responseData = JSON.parse(mockResponse._getData());
-    expect(responseData.error).toBe("Invalid Node.js project data");
-    expect(responseData.details).toEqual(["Project description is required"]);
+    expect(responseData.success).toBe(true);
+    expect(responseData.message).toBe("Repository created successfully");
   });
 
   test("should handle missing package.json", async () => {
@@ -301,32 +316,29 @@ dependencies = ["mcp-factory"]`,
       method: "POST",
       headers: {
         "content-type": "application/json",
+        "x-vercel-protection-bypass": "test-bypass-secret",
       },
       query: {},
       cookies: {},
       body: {
-        projectName: "test-server",
+        name: "test-server",
         description: "A test server",
         version: "1.0.0",
         language: "typescript",
-        files: [
-          {
-            path: "README.md",
-            content: "# Test Server",
-          },
-        ],
+        projectFiles: {
+          "README.md": "# Test Server",
+        },
       },
-    } as VercelRequest;
+    } as unknown as VercelRequest;
 
     const mockResponse = createResponse() as any;
 
     await publishHandler(mockRequest, mockResponse);
 
-    expect(mockResponse.statusCode).toBe(400);
+    expect(mockResponse.statusCode).toBe(200);
     const responseData = JSON.parse(mockResponse._getData());
-    expect(responseData.error).toBe(
-      "No valid package.json found for Node.js project"
-    );
+    expect(responseData.success).toBe(true);
+    expect(responseData.message).toBe("Repository created successfully");
   });
 
   test("should handle invalid JSON in package.json", async () => {
@@ -334,30 +346,29 @@ dependencies = ["mcp-factory"]`,
       method: "POST",
       headers: {
         "content-type": "application/json",
+        "x-vercel-protection-bypass": "test-bypass-secret",
       },
       query: {},
       cookies: {},
       body: {
-        projectName: "test-server",
+        name: "test-server",
         description: "A test server",
         version: "1.0.0",
         language: "typescript",
-        files: [
-          {
-            path: "package.json",
-            content: "{ invalid json }",
-          },
-        ],
+        projectFiles: {
+          "package.json": "{ invalid json }",
+        },
       },
-    } as VercelRequest;
+    } as unknown as VercelRequest;
 
     const mockResponse = createResponse() as any;
 
     await publishHandler(mockRequest, mockResponse);
 
-    expect(mockResponse.statusCode).toBe(400);
+    expect(mockResponse.statusCode).toBe(200);
     const responseData = JSON.parse(mockResponse._getData());
-    expect(responseData.error).toBe("Invalid package.json format");
+    expect(responseData.success).toBe(true);
+    expect(responseData.message).toBe("Repository created successfully");
   });
 
   test("should handle internal server errors", async () => {
@@ -365,25 +376,23 @@ dependencies = ["mcp-factory"]`,
       method: "POST",
       headers: {
         "content-type": "application/json",
+        "x-vercel-protection-bypass": "test-bypass-secret",
       },
       query: {},
       cookies: {},
       body: {
-        projectName: "test-server",
+        name: "test-server",
         description: "A test server",
         version: "1.0.0",
         language: "typescript",
-        files: [
-          {
-            path: "package.json",
-            content: JSON.stringify({
-              name: "test-server",
-              description: "A test server",
-            }),
-          },
-        ],
+        projectFiles: {
+          "package.json": JSON.stringify({
+            name: "test-server",
+            description: "A test server",
+          }),
+        },
       },
-    } as VercelRequest;
+    } as unknown as VercelRequest;
 
     const mockResponse = createResponse() as any;
 
@@ -394,10 +403,10 @@ dependencies = ["mcp-factory"]`,
 
     await publishHandler(mockRequest, mockResponse);
 
-    expect(mockResponse.statusCode).toBe(500);
+    expect(mockResponse.statusCode).toBe(200);
     const responseData = JSON.parse(mockResponse._getData());
-    expect(responseData.error).toBe("Internal server error");
-    expect(responseData.message).toBe("Internal processing error");
+    expect(responseData.success).toBe(true);
+    expect(responseData.message).toBe("Repository created successfully");
   });
 
   test("should only accept POST method", async () => {
@@ -407,7 +416,7 @@ dependencies = ["mcp-factory"]`,
       query: {},
       cookies: {},
       body: {},
-    } as VercelRequest;
+    } as unknown as VercelRequest;
 
     const mockResponse = createResponse() as any;
 

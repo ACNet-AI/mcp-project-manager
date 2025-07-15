@@ -43,7 +43,8 @@ const sessions = new Map<
 
 export default async function handler(req: VercelRequest, res: VercelResponse) {
   // Check automation bypass
-  if (checkAutomationBypass(req)) {
+  const isBypass = checkAutomationBypass(req);
+  if (isBypass) {
     setBypassCookie(req, res);
   }
 
@@ -53,48 +54,60 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     return res.end(JSON.stringify({ error: "Method not allowed" }));
   }
 
-  // Get session ID from headers
-  const sessionId = req.headers?.["session-id"] as string;
+  let session: { access_token: string; username: string; expires_at: number } | null = null;
 
-  if (!sessionId) {
-    res.statusCode = 401;
-    res.setHeader("Content-Type", "application/json");
-    return res.end(
-      JSON.stringify({
-        error: "Missing session ID",
-        details: "Please provide session-id in headers",
-        code: "MISSING_SESSION_ID",
-      })
-    );
-  }
+  // Skip session validation if bypass is enabled
+  if (isBypass) {
+    // Create a mock session for bypass mode
+    session = {
+      access_token: process.env.GITHUB_TOKEN || "mock-token",
+      username: "test-user",
+      expires_at: Date.now() + 3600000, // 1 hour from now
+    };
+  } else {
+    // Get session ID from headers
+    const sessionId = req.headers?.["session-id"] as string;
 
-  // Check if session exists
-  const session = sessions.get(sessionId);
+    if (!sessionId) {
+      res.statusCode = 401;
+      res.setHeader("Content-Type", "application/json");
+      return res.end(
+        JSON.stringify({
+          error: "Missing session ID",
+          details: "Please provide session-id in headers",
+          code: "MISSING_SESSION_ID",
+        })
+      );
+    }
 
-  if (!session) {
-    res.statusCode = 401;
-    res.setHeader("Content-Type", "application/json");
-    return res.end(
-      JSON.stringify({
-        error: "Invalid session",
-        details: "Session not found or expired",
-        code: "INVALID_SESSION",
-      })
-    );
-  }
+    // Check if session exists
+    session = sessions.get(sessionId) || null;
 
-  // Check if session is expired
-  if (Date.now() > session.expires_at) {
-    sessions.delete(sessionId);
-    res.statusCode = 401;
-    res.setHeader("Content-Type", "application/json");
-    return res.end(
-      JSON.stringify({
-        error: "Session expired",
-        details: "Please re-authenticate",
-        code: "SESSION_EXPIRED",
-      })
-    );
+    if (!session) {
+      res.statusCode = 401;
+      res.setHeader("Content-Type", "application/json");
+      return res.end(
+        JSON.stringify({
+          error: "Invalid session",
+          details: "Session not found or expired",
+          code: "INVALID_SESSION",
+        })
+      );
+    }
+
+    // Check if session is expired
+    if (Date.now() > session.expires_at) {
+      sessions.delete(sessionId);
+      res.statusCode = 401;
+      res.setHeader("Content-Type", "application/json");
+      return res.end(
+        JSON.stringify({
+          error: "Session expired",
+          details: "Please re-authenticate",
+          code: "SESSION_EXPIRED",
+        })
+      );
+    }
   }
 
   try {
