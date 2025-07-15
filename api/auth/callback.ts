@@ -1,4 +1,5 @@
 import { VercelRequest, VercelResponse } from "@vercel/node";
+import { createSession } from "../../src/utils/session.js";
 
 // Check if automation bypass is enabled
 function checkAutomationBypass(req: VercelRequest): boolean {
@@ -30,24 +31,25 @@ function setBypassCookie(req: VercelRequest, res: VercelResponse): void {
   }
 }
 
-// In-memory session storage (consider using Redis for production)
-const sessions = new Map<
-  string,
-  {
-    access_token: string;
-    username: string;
-    expires_at: number;
+// Helper function to safely extract query parameter
+function getQueryParam(query: any, key: string): string | undefined {
+  if (!query || typeof query !== 'object') {
+    return undefined;
   }
->();
-
-// Clean up expired sessions
-function cleanupExpiredSessions(): void {
-  const now = Date.now();
-  for (const [sessionId, session] of sessions.entries()) {
-    if (now > session.expires_at) {
-      sessions.delete(sessionId);
-    }
+  
+  const value = query[key];
+  
+  // Handle array case (when same param appears multiple times)
+  if (Array.isArray(value)) {
+    return value.length > 0 ? String(value[0]) : undefined;
   }
+  
+  // Handle string case
+  if (typeof value === 'string' && value.length > 0) {
+    return value;
+  }
+  
+  return undefined;
 }
 
 export default async function handler(req: VercelRequest, res: VercelResponse) {
@@ -62,11 +64,24 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     return res.end(JSON.stringify({ error: "Method not allowed" }));
   }
 
-  cleanupExpiredSessions();
-
+  // Enhanced parameter extraction with debugging
   const query = req.query || {};
-  const code = query.code as string;
-  const state = query.state as string;
+  const code = getQueryParam(query, 'code');
+  const state = getQueryParam(query, 'state');
+  
+  // Debug information
+  const debugInfo = {
+    hasQuery: !!req.query,
+    queryKeys: Object.keys(query),
+    rawCode: query.code,
+    rawState: query.state,
+    extractedCode: code,
+    extractedState: state,
+    codeType: typeof query.code,
+    stateType: typeof query.state,
+    url: req.url,
+    method: req.method
+  };
 
   if (!code || !state) {
     res.statusCode = 400;
@@ -75,6 +90,13 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       JSON.stringify({
         error: "Missing required parameters",
         details: "Both code and state parameters are required",
+        debug: debugInfo,
+        received: {
+          code: !!code,
+          state: !!state,
+          codeValue: code || 'missing',
+          stateValue: state ? 'present' : 'missing'
+        }
       })
     );
   }
@@ -97,7 +119,24 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
   try {
     // Validate state parameter
-    const stateData = JSON.parse(state as string);
+    let stateData;
+    try {
+      stateData = JSON.parse(state);
+    } catch (parseError) {
+      res.statusCode = 400;
+      res.setHeader("Content-Type", "application/json");
+      return res.end(
+        JSON.stringify({
+          error: "Invalid state parameter",
+          details: "State parameter must be valid JSON",
+          debug: {
+            state: state,
+            parseError: parseError instanceof Error ? parseError.message : String(parseError)
+          }
+        })
+      );
+    }
+    
     const timeDiff = Date.now() - stateData.timestamp;
     if (timeDiff > 10 * 60 * 1000) {
       // 10 minutes validity
@@ -123,7 +162,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         body: new URLSearchParams({
           client_id: clientId,
           client_secret: clientSecret,
-          code: code as string,
+          code: code,
           redirect_uri: redirectUri,
         }),
       }
@@ -137,7 +176,8 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       return res.end(
         JSON.stringify({
           error: "Failed to obtain access token",
-          details: tokenData.error_description || "Unknown error",
+          details: tokenData.error_description || tokenData.error || "Unknown error",
+          tokenResponse: tokenData
         })
       );
     }
@@ -159,20 +199,25 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         JSON.stringify({
           error: "Failed to fetch user information",
           details: userData.message || "Unknown error",
+          userData: userData
         })
       );
     }
 
-    // Generate session ID
-    const sessionId = generateSessionId();
-    const expiresAt = Date.now() + 8 * 60 * 60 * 1000; // 8 hours validity
+    // Create session using shared session storage
+    const sessionMetadata = {
+      ip_address: req.headers['x-forwarded-for'] as string || req.headers['x-real-ip'] as string,
+      user_agent: req.headers['user-agent'] as string
+    };
+    
+    const sessionId = createSession(
+      tokenData.access_token,
+      userData.login,
+      8 * 60 * 60 * 1000, // 8 hours
+      sessionMetadata
+    );
 
-    // Store session
-    sessions.set(sessionId, {
-      access_token: tokenData.access_token,
-      username: userData.login,
-      expires_at: expiresAt,
-    });
+    const expiresAt = Date.now() + 8 * 60 * 60 * 1000;
 
     // Return success page
     res.statusCode = 200;
@@ -229,23 +274,14 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       </html>
     `);
   } catch (error) {
-    console.error("OAuth callback error:", error);
     res.statusCode = 500;
     res.setHeader("Content-Type", "application/json");
     return res.end(
       JSON.stringify({
         error: "OAuth callback failed",
         details: error instanceof Error ? error.message : String(error),
+        stack: error instanceof Error ? error.stack : undefined
       })
     );
   }
-}
-
-// 生成随机的session ID
-function generateSessionId(): string {
-  return (
-    Math.random().toString(36).substring(2, 15) +
-    Math.random().toString(36).substring(2, 15) +
-    Date.now().toString(36)
-  );
 }

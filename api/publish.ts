@@ -1,5 +1,6 @@
 import { VercelRequest, VercelResponse } from "@vercel/node";
 import { Octokit } from "@octokit/rest";
+import { validateSession } from "../src/utils/session.js";
 
 // Check if automation bypass is enabled
 function checkAutomationBypass(req: VercelRequest): boolean {
@@ -31,15 +32,7 @@ function setBypassCookie(req: VercelRequest, res: VercelResponse): void {
   }
 }
 
-// Session storage shared with callback.ts
-const sessions = new Map<
-  string,
-  {
-    access_token: string;
-    username: string;
-    expires_at: number;
-  }
->();
+// Session validation is now handled by shared session storage
 
 export default async function handler(req: VercelRequest, res: VercelResponse) {
   // Check automation bypass
@@ -80,34 +73,27 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       );
     }
 
-    // Check if session exists
-    session = sessions.get(sessionId) || null;
+    // Validate session using shared session storage
+    const validatedSession = validateSession(sessionId);
 
-    if (!session) {
+    if (!validatedSession) {
       res.statusCode = 401;
       res.setHeader("Content-Type", "application/json");
       return res.end(
         JSON.stringify({
-          error: "Invalid session",
-          details: "Session not found or expired",
+          error: "Invalid or expired session",
+          details: "Session not found or has expired. Please re-authenticate.",
           code: "INVALID_SESSION",
         })
       );
     }
 
-    // Check if session is expired
-    if (Date.now() > session.expires_at) {
-      sessions.delete(sessionId);
-      res.statusCode = 401;
-      res.setHeader("Content-Type", "application/json");
-      return res.end(
-        JSON.stringify({
-          error: "Session expired",
-          details: "Please re-authenticate",
-          code: "SESSION_EXPIRED",
-        })
-      );
-    }
+    // Convert to expected session format
+    session = {
+      access_token: validatedSession.access_token,
+      username: validatedSession.username,
+      expires_at: validatedSession.expires_at,
+    };
   }
 
   try {

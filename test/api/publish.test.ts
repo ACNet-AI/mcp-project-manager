@@ -118,7 +118,7 @@ describe("Publish API", () => {
       url: "https://github.com/test-user/test-repo",
       owner: "test-user",
     });
-          expect(responseData.message).toBe("Repository created successfully");
+    expect(responseData.message).toBe("Repository created successfully");
   });
 
   test("should handle valid Python MCP Factory project", async () => {

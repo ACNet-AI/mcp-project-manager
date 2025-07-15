@@ -1,4 +1,5 @@
 import { VercelRequest, VercelResponse } from "@vercel/node";
+import { validateSession, getSessionCount } from "../../src/utils/session.js";
 
 // Check if automation bypass is enabled
 function checkAutomationBypass(req: VercelRequest): boolean {
@@ -30,16 +31,6 @@ function setBypassCookie(req: VercelRequest, res: VercelResponse): void {
   }
 }
 
-// Sessions storage at module level (shared with callback.ts)
-const sessions = new Map<
-  string,
-  {
-    access_token: string;
-    username: string;
-    expires_at: number;
-  }
->();
-
 export default async function handler(req: VercelRequest, res: VercelResponse) {
   // Check automation bypass
   if (checkAutomationBypass(req)) {
@@ -55,7 +46,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   // Get session ID from headers or query parameters
   const sessionId = req.headers?.["session-id"] || req.query?.["session-id"];
 
-  if (!sessionId) {
+  if (!sessionId || typeof sessionId !== 'string') {
     res.statusCode = 400;
     res.setHeader("Content-Type", "application/json");
     return res.end(
@@ -67,31 +58,17 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     );
   }
 
-  // Check if session exists
-  const session = sessions.get(sessionId as string);
+  // Validate session using shared session storage
+  const session = validateSession(sessionId);
 
   if (!session) {
     res.statusCode = 401;
     res.setHeader("Content-Type", "application/json");
     return res.end(
       JSON.stringify({
-        error: "Invalid session",
-        details: "Session not found or expired",
+        error: "Invalid or expired session",
+        details: "Session not found or has expired. Please re-authenticate.",
         code: "INVALID_SESSION",
-      })
-    );
-  }
-
-  // Check if session is expired
-  if (Date.now() > session.expires_at) {
-    sessions.delete(sessionId as string);
-    res.statusCode = 401;
-    res.setHeader("Content-Type", "application/json");
-    return res.end(
-      JSON.stringify({
-        error: "Session expired",
-        details: "Please re-authenticate",
-        code: "SESSION_EXPIRED",
       })
     );
   }
@@ -113,8 +90,10 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       session_id: sessionId,
       username: session.username,
       expires_at: session.expires_at,
+      created_at: session.created_at,
       expires_in: Math.floor((session.expires_at - Date.now()) / 1000),
       environment: envStatus,
+      total_sessions: getSessionCount(),
       message: "Session is valid and active",
     })
   );
