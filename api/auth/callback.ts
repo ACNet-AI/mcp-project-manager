@@ -31,7 +31,31 @@ function setBypassCookie(req: VercelRequest, res: VercelResponse): void {
   }
 }
 
-// Helper function to safely extract query parameter
+// Direct URL parameter parsing for Vercel platform reliability
+function parseUrlParameters(url: string): { [key: string]: string } {
+  const params: { [key: string]: string } = {};
+  
+  if (!url) return params;
+  
+  // Extract query string from URL
+  const queryStart = url.indexOf('?');
+  if (queryStart === -1) return params;
+  
+  const queryString = url.slice(queryStart + 1);
+  
+  // Parse parameters
+  const pairs = queryString.split('&');
+  for (const pair of pairs) {
+    const [key, value] = pair.split('=');
+    if (key && value) {
+      params[decodeURIComponent(key)] = decodeURIComponent(value);
+    }
+  }
+  
+  return params;
+}
+
+// Helper function to safely extract query parameter (fallback method)
 function getQueryParam(query: any, key: string): string | undefined {
   if (!query || typeof query !== 'object') {
     return undefined;
@@ -64,23 +88,40 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     return res.end(JSON.stringify({ error: "Method not allowed" }));
   }
 
-  // Enhanced parameter extraction with debugging
+  // Enhanced parameter extraction - try multiple methods
   const query = req.query || {};
-  const code = getQueryParam(query, 'code');
-  const state = getQueryParam(query, 'state');
+  const urlParams = parseUrlParameters(req.url || '');
   
-  // Debug information
+  // Try to get parameters from both sources
+  const code = getQueryParam(query, 'code') || urlParams.code;
+  const state = getQueryParam(query, 'state') || urlParams.state;
+  
+  // Comprehensive debug information
   const debugInfo = {
+    // Request info
+    url: req.url,
+    method: req.method,
+    
+    // req.query analysis
     hasQuery: !!req.query,
     queryKeys: Object.keys(query),
-    rawCode: query.code,
-    rawState: query.state,
-    extractedCode: code,
-    extractedState: state,
-    codeType: typeof query.code,
-    stateType: typeof query.state,
-    url: req.url,
-    method: req.method
+    queryObject: query,
+    
+    // URL parsing analysis
+    urlParams: urlParams,
+    urlParamsKeys: Object.keys(urlParams),
+    
+    // Parameter extraction results
+    codeFromQuery: getQueryParam(query, 'code'),
+    stateFromQuery: getQueryParam(query, 'state'),
+    codeFromUrl: urlParams.code,
+    stateFromUrl: urlParams.state,
+    finalCode: code,
+    finalState: state,
+    
+    // Type information
+    codeType: typeof code,
+    stateType: typeof state,
   };
 
   if (!code || !state) {
@@ -96,7 +137,8 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
           state: !!state,
           codeValue: code || 'missing',
           stateValue: state ? 'present' : 'missing'
-        }
+        },
+        suggestion: "Check if GitHub OAuth callback URL is configured correctly"
       })
     );
   }
@@ -219,7 +261,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
     const expiresAt = Date.now() + 8 * 60 * 60 * 1000;
 
-    // Return success page
+    // Return success page with enhanced debugging info
     res.statusCode = 200;
     res.setHeader("Content-Type", "text/html");
     return res.end(`
@@ -232,6 +274,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
           body { font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px; }
           .success { background-color: #d4edda; color: #155724; padding: 20px; border-radius: 8px; margin: 20px 0; }
           .info { background-color: #d1ecf1; color: #0c5460; padding: 15px; border-radius: 5px; margin: 15px 0; }
+          .debug { background-color: #f8f9fa; color: #495057; padding: 10px; border-radius: 5px; margin: 10px 0; font-size: 12px; }
           code { background-color: #f8f9fa; padding: 2px 6px; border-radius: 3px; }
           button { background-color: #007bff; color: white; border: none; padding: 10px 20px; margin: 10px 0; border-radius: 5px; cursor: pointer; }
           button:hover { background-color: #0056b3; }
@@ -245,6 +288,13 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
           <p><strong>Username:</strong> ${userData.login}</p>
           <p><strong>Session ID:</strong> <code id="sessionId">${sessionId}</code></p>
           <p><strong>Expires At:</strong> ${new Date(expiresAt).toLocaleString()}</p>
+        </div>
+        
+        <div class="debug">
+          <h4>Parameter Parsing Debug</h4>
+          <p><strong>URL:</strong> ${req.url}</p>
+          <p><strong>Code Source:</strong> ${debugInfo.codeFromUrl ? 'URL Parser' : 'req.query'}</p>
+          <p><strong>State Source:</strong> ${debugInfo.stateFromUrl ? 'URL Parser' : 'req.query'}</p>
         </div>
         
         <div class="info">
