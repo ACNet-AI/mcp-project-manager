@@ -108,6 +108,31 @@ export function validateSession(sessionId: string): SessionData | null {
   return getSession(sessionId);
 }
 
+// Update existing session (for OAuth completion)
+export function updateSession(
+  sessionId: string,
+  access_token: string,
+  username: string,
+  expiresInMs?: number
+): boolean {
+  const existingSession = sessions.get(sessionId);
+  if (!existingSession) {
+    return false;
+  }
+
+  // Update session data
+  const now = Date.now();
+  const updatedSession = {
+    ...existingSession,
+    access_token,
+    username,
+    expires_at: expiresInMs ? now + expiresInMs : existingSession.expires_at,
+  };
+
+  sessions.set(sessionId, updatedSession);
+  return true;
+}
+
 // Delete session
 export function deleteSession(sessionId: string): boolean {
   return sessions.delete(sessionId);

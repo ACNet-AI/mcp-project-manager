@@ -92,6 +92,25 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     );
   }
 
+  // Check if session is in pending OAuth state
+  if (session.access_token === "pending_oauth" && session.username === "pending") {
+    console.log(`[SESSION-DEBUG] Session in pending OAuth state: ${sessionId}`);
+    res.statusCode = 202; // Accepted - processing
+    res.setHeader("Content-Type", "application/json");
+    return res.end(
+      JSON.stringify({
+        authorized: false,
+        session_id: sessionId,
+        status: "pending_oauth",
+        message: "Session created, waiting for OAuth completion",
+        expires_at: session.expires_at,
+        expires_in: Math.floor((session.expires_at - Date.now()) / 1000),
+        next_step: "Complete GitHub OAuth authorization",
+        code: "PENDING_OAUTH",
+      })
+    );
+  }
+
   // Check environment variables status
   const envStatus = {
     github_client_id: !!process.env.GITHUB_CLIENT_ID,

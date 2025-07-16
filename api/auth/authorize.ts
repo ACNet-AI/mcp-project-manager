@@ -1,4 +1,5 @@
 import { VercelRequest, VercelResponse } from "@vercel/node";
+import { createSessionWithId } from "../../src/utils/session.js";
 
 // Check if automation bypass is enabled
 function checkAutomationBypass(req: VercelRequest): boolean {
@@ -61,9 +62,46 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   // Get project name (optional)
   const projectName = req.query?.project_name as string;
 
+  // Generate session ID (timestamp)
+  const sessionId = Date.now().toString();
+  
+  // Create preliminary session (pending OAuth completion)
+  // This resolves the timing issue where client checks status before OAuth callback
+  const sessionMetadata = {
+    ip_address: req.headers['x-forwarded-for'] as string || req.headers['x-real-ip'] as string,
+    user_agent: req.headers['user-agent'] as string
+  };
+
+  console.log(`[AUTH-DEBUG] ${new Date().toISOString()} - Creating preliminary session`);
+  console.log(`[AUTH-DEBUG] Session ID: ${sessionId}`);
+  console.log(`[AUTH-DEBUG] Session will expire in 10 minutes if OAuth not completed`);
+
+  // Create preliminary session with temporary token
+  const sessionCreated = createSessionWithId(
+    sessionId,
+    "pending_oauth", // Temporary token until OAuth completes
+    "pending", // Temporary username until OAuth completes
+    10 * 60 * 1000, // 10 minutes for OAuth completion
+    sessionMetadata
+  );
+
+  if (!sessionCreated) {
+    console.log(`[AUTH-DEBUG] Failed to create preliminary session - ID collision`);
+    res.statusCode = 500;
+    res.setHeader("Content-Type", "application/json");
+    return res.end(
+      JSON.stringify({
+        error: "Failed to create session",
+        details: "Session ID already exists",
+      })
+    );
+  }
+
+  console.log(`[AUTH-DEBUG] Preliminary session created successfully: ${sessionId}`);
+
   // Build state parameter
   const state = JSON.stringify({
-    timestamp: Date.now(),
+    timestamp: parseInt(sessionId), // Use same timestamp as session ID
     action: "create_repo",
     project_name: projectName || "mcp-project",
   });
@@ -82,6 +120,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       success: true,
       auth_url: githubAuthUrl.toString(),
       state: state,
+      session_id: sessionId, // Return session ID for client use
     })
   );
 }

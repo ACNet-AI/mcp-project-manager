@@ -1,5 +1,5 @@
 import { VercelRequest, VercelResponse } from "@vercel/node";
-import { createSessionWithId } from "../../src/utils/session.js";
+import { createSessionWithId, getSession, updateSession } from "../../src/utils/session.js";
 
 // Check if automation bypass is enabled
 function checkAutomationBypass(req: VercelRequest): boolean {
@@ -246,51 +246,71 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       );
     }
 
-    // Create session using shared session storage
-    const sessionMetadata = {
-      ip_address: req.headers['x-forwarded-for'] as string || req.headers['x-real-ip'] as string,
-      user_agent: req.headers['user-agent'] as string
-    };
-    
     // Use timestamp from state as session ID (client expects this)
     const sessionId = stateData.timestamp.toString();
     
-    // Add session creation debugging
-    console.log(`[CALLBACK-DEBUG] ${new Date().toISOString()} - Creating session`);
+    // Add session update debugging
+    console.log(`[CALLBACK-DEBUG] ${new Date().toISOString()} - Updating preliminary session`);
     console.log(`[CALLBACK-DEBUG] Session ID: ${sessionId} (from state.timestamp)`);
     console.log(`[CALLBACK-DEBUG] User: ${userData.login}`);
     console.log(`[CALLBACK-DEBUG] Session expiry: 30 minutes`);
     
-    // Create session with the expected session ID
-    const sessionCreated = createSessionWithId(
-      sessionId,
-      tokenData.access_token,
-      userData.login,
-      30 * 60 * 1000, // 30 minutes (OAuth security best practice)
-      sessionMetadata
-    );
-
-    console.log(`[CALLBACK-DEBUG] Session creation result:`, {
-      success: sessionCreated,
-      sessionId: sessionId,
-      username: userData.login,
-      expiresAt: Date.now() + 30 * 60 * 1000,
-      metadata: sessionMetadata
-    });
-
-    if (!sessionCreated) {
-      console.log(`[CALLBACK-DEBUG] Session creation failed - ID already exists or other error`);
-      res.statusCode = 500;
-      res.setHeader("Content-Type", "application/json");
-      return res.end(
-        JSON.stringify({
-          error: "Failed to create session",
-          details: "Session ID already exists or creation failed",
-        })
+    // Check if preliminary session exists
+    const existingSession = getSession(sessionId);
+    
+    if (!existingSession) {
+      console.log(`[CALLBACK-DEBUG] Preliminary session not found - creating new session`);
+      
+      // Fallback: create new session if preliminary session doesn't exist
+      const sessionMetadata = {
+        ip_address: req.headers['x-forwarded-for'] as string || req.headers['x-real-ip'] as string,
+        user_agent: req.headers['user-agent'] as string
+      };
+      
+      const sessionCreated = createSessionWithId(
+        sessionId,
+        tokenData.access_token,
+        userData.login,
+        30 * 60 * 1000, // 30 minutes
+        sessionMetadata
       );
+
+      if (!sessionCreated) {
+        console.log(`[CALLBACK-DEBUG] Session creation failed - ID collision`);
+        res.statusCode = 500;
+        res.setHeader("Content-Type", "application/json");
+        return res.end(
+          JSON.stringify({
+            error: "Failed to create session",
+            details: "Session ID already exists or creation failed",
+          })
+        );
+      }
+    } else {
+      console.log(`[CALLBACK-DEBUG] Updating existing preliminary session`);
+      
+      // Update existing preliminary session with OAuth data
+      const sessionUpdated = updateSession(
+        sessionId,
+        tokenData.access_token,
+        userData.login,
+        30 * 60 * 1000 // 30 minutes (OAuth security best practice)
+      );
+
+      if (!sessionUpdated) {
+        console.log(`[CALLBACK-DEBUG] Session update failed`);
+        res.statusCode = 500;
+        res.setHeader("Content-Type", "application/json");
+        return res.end(
+          JSON.stringify({
+            error: "Failed to update session",
+            details: "Session update failed",
+          })
+        );
+      }
     }
 
-    console.log(`[CALLBACK-DEBUG] Session created successfully for ${userData.login}`);
+    console.log(`[CALLBACK-DEBUG] Session completed successfully for ${userData.login}`);
 
     const expiresAt = Date.now() + 30 * 60 * 1000;
 
@@ -329,7 +349,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
           <p><strong>Code Source:</strong> ${debugInfo.codeFromUrl ? 'URL Parser' : 'req.query'}</p>
           <p><strong>State Source:</strong> ${debugInfo.stateFromUrl ? 'URL Parser' : 'req.query'}</p>
           <p><strong>Session ID Source:</strong> state.timestamp (${sessionId})</p>
-          <p><strong>Session Created:</strong> ✅ Using client-expected ID</p>
+          <p><strong>Session Updated:</strong> ✅ OAuth completed successfully</p>
         </div>
         
         <div class="info">
