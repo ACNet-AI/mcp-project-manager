@@ -61,7 +61,12 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     // Get session ID from headers
     const sessionId = req.headers?.["session-id"] as string;
 
+    // Add detailed debugging logs for publish API
+    console.log(`[PUBLISH-DEBUG] ${new Date().toISOString()} - Publish request`);
+    console.log(`[PUBLISH-DEBUG] Session ID from headers: ${sessionId} (type: ${typeof sessionId})`);
+
     if (!sessionId) {
+      console.log(`[PUBLISH-DEBUG] Session ID missing in headers`);
       res.statusCode = 401;
       res.setHeader("Content-Type", "application/json");
       return res.end(
@@ -74,9 +79,20 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     }
 
     // Validate session using shared session storage
+    console.log(`[PUBLISH-DEBUG] Validating session: ${sessionId}`);
     const validatedSession = validateSession(sessionId);
 
+    console.log(`[PUBLISH-DEBUG] Session validation result:`, {
+      found: !!validatedSession,
+      sessionId: sessionId,
+      username: validatedSession?.username,
+      expires_at: validatedSession?.expires_at,
+      currentTime: Date.now(),
+      timeRemaining: validatedSession ? Math.floor((validatedSession.expires_at - Date.now()) / 1000) : 0
+    });
+
     if (!validatedSession) {
+      console.log(`[PUBLISH-DEBUG] Session validation failed - session not found or expired`);
       res.statusCode = 401;
       res.setHeader("Content-Type", "application/json");
       return res.end(
@@ -87,6 +103,8 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         })
       );
     }
+
+    console.log(`[PUBLISH-DEBUG] Session validation successful for user: ${validatedSession.username}`);
 
     // Convert to expected session format
     session = {

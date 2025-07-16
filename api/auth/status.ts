@@ -46,7 +46,14 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   // Get session ID from headers or query parameters
   const sessionId = req.headers?.["session-id"] || req.query?.["session-id"];
 
+  // Add detailed debugging logs
+  console.log(`[SESSION-DEBUG] ${new Date().toISOString()} - Status check request`);
+  console.log(`[SESSION-DEBUG] Request headers:`, req.headers);
+  console.log(`[SESSION-DEBUG] Request query:`, req.query);
+  console.log(`[SESSION-DEBUG] Extracted session ID: ${sessionId} (type: ${typeof sessionId})`);
+
   if (!sessionId || typeof sessionId !== 'string') {
+    console.log(`[SESSION-DEBUG] Session ID validation failed - missing or invalid type`);
     res.statusCode = 400;
     res.setHeader("Content-Type", "application/json");
     return res.end(
@@ -59,9 +66,21 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   }
 
   // Validate session using shared session storage
+  console.log(`[SESSION-DEBUG] Validating session: ${sessionId}`);
   const session = validateSession(sessionId);
+  
+  console.log(`[SESSION-DEBUG] Session validation result:`, {
+    found: !!session,
+    sessionId: sessionId,
+    totalSessions: getSessionCount(),
+    expires_at: session?.expires_at,
+    created_at: session?.created_at,
+    username: session?.username,
+    currentTime: Date.now()
+  });
 
   if (!session) {
+    console.log(`[SESSION-DEBUG] Session not found or expired - total active sessions: ${getSessionCount()}`);
     res.statusCode = 401;
     res.setHeader("Content-Type", "application/json");
     return res.end(
@@ -80,6 +99,8 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     github_redirect_uri: !!process.env.GITHUB_REDIRECT_URI,
     vercel_automation_bypass: !!process.env.VERCEL_AUTOMATION_BYPASS_SECRET,
   };
+
+  console.log(`[SESSION-DEBUG] Session status check successful for user: ${session.username}`);
 
   // Return session status
   res.statusCode = 200;

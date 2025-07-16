@@ -1,5 +1,5 @@
 import { VercelRequest, VercelResponse } from "@vercel/node";
-import { createSession } from "../../src/utils/session.js";
+import { createSessionWithId } from "../../src/utils/session.js";
 
 // Check if automation bypass is enabled
 function checkAutomationBypass(req: VercelRequest): boolean {
@@ -252,14 +252,47 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       user_agent: req.headers['user-agent'] as string
     };
     
-    const sessionId = createSession(
+    // Use timestamp from state as session ID (client expects this)
+    const sessionId = stateData.timestamp.toString();
+    
+    // Add session creation debugging
+    console.log(`[CALLBACK-DEBUG] ${new Date().toISOString()} - Creating session`);
+    console.log(`[CALLBACK-DEBUG] Session ID: ${sessionId} (from state.timestamp)`);
+    console.log(`[CALLBACK-DEBUG] User: ${userData.login}`);
+    console.log(`[CALLBACK-DEBUG] Session expiry: 30 minutes`);
+    
+    // Create session with the expected session ID
+    const sessionCreated = createSessionWithId(
+      sessionId,
       tokenData.access_token,
       userData.login,
-      8 * 60 * 60 * 1000, // 8 hours
+      30 * 60 * 1000, // 30 minutes (OAuth security best practice)
       sessionMetadata
     );
 
-    const expiresAt = Date.now() + 8 * 60 * 60 * 1000;
+    console.log(`[CALLBACK-DEBUG] Session creation result:`, {
+      success: sessionCreated,
+      sessionId: sessionId,
+      username: userData.login,
+      expiresAt: Date.now() + 30 * 60 * 1000,
+      metadata: sessionMetadata
+    });
+
+    if (!sessionCreated) {
+      console.log(`[CALLBACK-DEBUG] Session creation failed - ID already exists or other error`);
+      res.statusCode = 500;
+      res.setHeader("Content-Type", "application/json");
+      return res.end(
+        JSON.stringify({
+          error: "Failed to create session",
+          details: "Session ID already exists or creation failed",
+        })
+      );
+    }
+
+    console.log(`[CALLBACK-DEBUG] Session created successfully for ${userData.login}`);
+
+    const expiresAt = Date.now() + 30 * 60 * 1000;
 
     // Return success page with enhanced debugging info
     res.statusCode = 200;
@@ -291,10 +324,12 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         </div>
         
         <div class="debug">
-          <h4>Parameter Parsing Debug</h4>
+          <h4>OAuth Callback Debug</h4>
           <p><strong>URL:</strong> ${req.url}</p>
           <p><strong>Code Source:</strong> ${debugInfo.codeFromUrl ? 'URL Parser' : 'req.query'}</p>
           <p><strong>State Source:</strong> ${debugInfo.stateFromUrl ? 'URL Parser' : 'req.query'}</p>
+          <p><strong>Session ID Source:</strong> state.timestamp (${sessionId})</p>
+          <p><strong>Session Created:</strong> ✅ Using client-expected ID</p>
         </div>
         
         <div class="info">

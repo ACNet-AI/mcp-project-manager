@@ -36,7 +36,7 @@ export function generateSessionId(): string {
 export function createSession(
   access_token: string,
   username: string,
-  expiresInMs: number = 8 * 60 * 60 * 1000, // 8 hours default
+  expiresInMs: number = 30 * 60 * 1000, // 30 minutes default (OAuth security best practice)
   metadata?: { ip_address?: string; user_agent?: string }
 ): string {
   cleanupExpiredSessions();
@@ -54,6 +54,35 @@ export function createSession(
   });
   
   return sessionId;
+}
+
+// Create session with specified ID (for OAuth callback compatibility)
+export function createSessionWithId(
+  sessionId: string,
+  access_token: string,
+  username: string,
+  expiresInMs: number = 30 * 60 * 1000, // 30 minutes default (OAuth security best practice)
+  metadata?: { ip_address?: string; user_agent?: string }
+): boolean {
+  cleanupExpiredSessions();
+  
+  // Check if session ID already exists
+  if (sessions.has(sessionId)) {
+    return false;
+  }
+  
+  const now = Date.now();
+  
+  sessions.set(sessionId, {
+    access_token,
+    username,
+    expires_at: now + expiresInMs,
+    created_at: now,
+    ip_address: metadata?.ip_address,
+    user_agent: metadata?.user_agent,
+  });
+  
+  return true;
 }
 
 // Get session by ID
