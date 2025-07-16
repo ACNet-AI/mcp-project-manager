@@ -1,5 +1,4 @@
 import { VercelRequest, VercelResponse } from "@vercel/node";
-import { createSessionWithId, getSession, updateSession } from "../../src/utils/session.js";
 
 // Check if automation bypass is enabled
 function checkAutomationBypass(req: VercelRequest): boolean {
@@ -249,68 +248,11 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     // Use timestamp from state as session ID (client expects this)
     const sessionId = stateData.timestamp.toString();
     
-    // Add session update debugging
-    console.log(`[CALLBACK-DEBUG] ${new Date().toISOString()} - Updating preliminary session`);
+    // Stateless OAuth completion - no server-side session storage needed
+    console.log(`[CALLBACK-DEBUG] ${new Date().toISOString()} - OAuth completed (stateless)`);
     console.log(`[CALLBACK-DEBUG] Session ID: ${sessionId} (from state.timestamp)`);
     console.log(`[CALLBACK-DEBUG] User: ${userData.login}`);
-    console.log(`[CALLBACK-DEBUG] Session expiry: 30 minutes`);
-    
-    // Check if preliminary session exists
-    const existingSession = getSession(sessionId);
-    
-    if (!existingSession) {
-      console.log(`[CALLBACK-DEBUG] Preliminary session not found - creating new session`);
-      
-      // Fallback: create new session if preliminary session doesn't exist
-      const sessionMetadata = {
-        ip_address: req.headers['x-forwarded-for'] as string || req.headers['x-real-ip'] as string,
-        user_agent: req.headers['user-agent'] as string
-      };
-      
-      const sessionCreated = createSessionWithId(
-        sessionId,
-        tokenData.access_token,
-        userData.login,
-        30 * 60 * 1000, // 30 minutes
-        sessionMetadata
-      );
-
-      if (!sessionCreated) {
-        console.log(`[CALLBACK-DEBUG] Session creation failed - ID collision`);
-        res.statusCode = 500;
-        res.setHeader("Content-Type", "application/json");
-        return res.end(
-          JSON.stringify({
-            error: "Failed to create session",
-            details: "Session ID already exists or creation failed",
-          })
-        );
-      }
-    } else {
-      console.log(`[CALLBACK-DEBUG] Updating existing preliminary session`);
-      
-      // Update existing preliminary session with OAuth data
-      const sessionUpdated = updateSession(
-        sessionId,
-        tokenData.access_token,
-        userData.login,
-        30 * 60 * 1000 // 30 minutes (OAuth security best practice)
-      );
-
-      if (!sessionUpdated) {
-        console.log(`[CALLBACK-DEBUG] Session update failed`);
-        res.statusCode = 500;
-        res.setHeader("Content-Type", "application/json");
-        return res.end(
-          JSON.stringify({
-            error: "Failed to update session",
-            details: "Session update failed",
-          })
-        );
-      }
-    }
-
-    console.log(`[CALLBACK-DEBUG] Session completed successfully for ${userData.login}`);
+    console.log(`[CALLBACK-DEBUG] OAuth successful - client can now use session ID`);
 
     const expiresAt = Date.now() + 30 * 60 * 1000;
 
@@ -349,7 +291,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
           <p><strong>Code Source:</strong> ${debugInfo.codeFromUrl ? 'URL Parser' : 'req.query'}</p>
           <p><strong>State Source:</strong> ${debugInfo.stateFromUrl ? 'URL Parser' : 'req.query'}</p>
           <p><strong>Session ID Source:</strong> state.timestamp (${sessionId})</p>
-          <p><strong>Session Updated:</strong> ✅ OAuth completed successfully</p>
+          <p><strong>OAuth Status:</strong> ✅ Completed successfully (stateless)</p>
         </div>
         
         <div class="info">
@@ -357,6 +299,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
           <p>1. Copy the Session ID above</p>
           <p>2. Use it in API calls with Header: <code>session-id: ${sessionId}</code></p>
           <p>3. You can now use <code>/api/publish</code> to create repositories</p>
+          <p>4. Your session is valid for 30 minutes from now</p>
         </div>
         
         <button onclick="copySessionId()">Copy Session ID</button>

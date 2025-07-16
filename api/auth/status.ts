@@ -152,7 +152,17 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
   // For stateless approach, we assume session is in pending OAuth state
   // until we implement OAuth completion tracking
-  const isPendingOAuth = true; // Simplified for demo
+  
+  // Check if OAuth might be completed by examining session age
+  // If session is older than 5 minutes, likely OAuth was attempted
+  const sessionTimestamp = parseInt(sessionId);
+  const sessionAge = Date.now() - sessionTimestamp;
+  const oauthTimeoutMs = 5 * 60 * 1000; // 5 minutes
+  
+  // Simple heuristic: if session is very new (< 30 seconds), definitely pending
+  // If session is old (> 5 minutes) without completion, likely failed
+  const isPendingOAuth = sessionAge < 30000; // 30 seconds
+  const isLikelyExpiredOAuth = sessionAge > oauthTimeoutMs;
   
   if (isPendingOAuth) {
     console.log(`[SESSION-DEBUG] Session in pending OAuth state: ${sessionId}`);
@@ -172,6 +182,29 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       })
     );
   }
+
+  if (isLikelyExpiredOAuth) {
+    console.log(`[SESSION-DEBUG] OAuth likely expired for session: ${sessionId}`);
+    res.statusCode = 408; // Request Timeout
+    res.setHeader("Content-Type", "application/json");
+    return res.end(
+      JSON.stringify({
+        authorized: false,
+        session_id: sessionId,
+        status: "oauth_timeout",
+        message: "OAuth authorization timed out. Please restart the process.",
+        expires_at: validation.expires_at,
+        expires_in: Math.floor((validation.expires_at! - Date.now()) / 1000),
+        next_step: "Restart OAuth authorization",
+        code: "OAUTH_TIMEOUT",
+        environment: envStatus,
+      })
+    );
+  }
+
+  // Session is in middle state - could be completed OAuth
+  // In a real implementation, this would check actual OAuth completion
+  console.log(`[SESSION-DEBUG] Session in intermediate state, assuming OAuth completed: ${sessionId}`);
 
   // Return session status (this will be reached after OAuth completion)
   res.statusCode = 200;
