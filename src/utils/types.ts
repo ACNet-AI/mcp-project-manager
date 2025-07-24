@@ -370,14 +370,30 @@ export interface RepositoryCreateOptions {
  * MCP Factory project registration interface
  */
 export interface MCPProjectRegistration {
+  // Core project information
   name: string;
+  author: string;
   description: string;
   repository: string;
-  version: string;
-  language: "python" | "typescript" | "javascript"; // Support multiple languages
+
+  // Category and status
   category: "server" | "tools" | "resources" | "prompts";
-  tags?: string[];
-  factoryVersion?: string;
+  status: "approved" | "rejected";
+
+  // Version and time
+  version?: string;
+  registered_at: string;
+
+  // Utility information
+  tags: string[];
+  dependencies: string[]; // Direct array, no hierarchy
+
+  // Technical information (remove language, keep only specific python version)
+  python_version?: string;
+  license?: string;
+
+  // Simplified quality information (if needed to display to users)
+  quality_score?: number; // Integer from 0-100
 }
 
 /**

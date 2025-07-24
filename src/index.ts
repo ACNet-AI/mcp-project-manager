@@ -146,55 +146,61 @@ Once these issues are resolved, push your changes to trigger automatic re-valida
 
           // Actually perform the registration
           context.log.info("🚀 Starting automatic registration process...");
+          // Register to Hub
           const registrationResult = await registerToHub(context, projectInfo);
 
-          let successBody = `## 🎉 Congratulations!
+          let successBody = `## 🎉 Project Temporarily Registered Successfully!
 
-Your MCP Factory project meets all requirements for automatic registration.
+Your MCP Factory project has passed all automatic validations and **has been temporarily registered to MCP Hub**, now awaiting manual review confirmation.
 
-### Project Summary:
+### 📝 Project Summary:
 ${summary}
 
 ### ✅ Validation Results:
 - **Structure Compliance**: ${(project.structureCompliance * 100).toFixed(1)}%
-- **Factory Dependency**: ✅ Found
+- **MCP Factory Dependency**: ✅ Found
 - **Required Files**: ✅ All present
 - **Required Directories**: ✅ Complete
 - **Metadata**: ✅ Valid
 
-### 📋 Relevance Score:
+### 📊 Relevance Score:
 - **Score**: ${relevance.score}/100
-- **Relevant**: ${relevance.isRelevant ? "✅ Yes" : "❌ No"}
+- **Relevance**: ${relevance.isRelevant ? "✅ Highly relevant" : "❌ Insufficient relevance"}
 - **Reasons**: ${relevance.reasons.join(", ")}
 
 ### 🚀 Registration Status:`;
 
           if (registrationResult.success) {
             successBody += `
-✅ **Registration PR Created Successfully!**
+✅ **Successfully temporarily registered to MCP Hub!**
 
-Your project has been automatically submitted to the MCP Servers Hub registry:
-🔗 **Registration PR**: ${registrationResult.url}
+Your project has been added to the MCP Hub registry's pending-review branch, awaiting manual review confirmation:
+🔗 **Review Pull Request**: ${registrationResult.url}
 
-The registration is now pending review by the MCP community. You will be notified once the PR is merged and your project is officially listed in the registry.
+**Important**: This is a temporary registration status, project information is in the Hub's pending review branch. It will be officially published after review approval.
 
-### Next Steps:
-1. Monitor the registration PR for any feedback
-2. Respond to any review comments if needed
-3. Your project will be publicly available once the PR is approved`;
+### 📋 Next Steps:
+1. **Monitor Review PR** - Watch for any feedback
+2. **Respond Promptly** - Reply promptly if there are review comments  
+3. **Wait for Publication** - Project will be officially available after PR merge
+
+### 🎯 Current Status Description:
+- ✅ **Temporary Registration Complete** - Project is in pending-review branch
+- ⏳ **Awaiting Manual Review** - Hub maintainers will review and confirm
+- 🔄 **Can Update** - You can still push updates during review period`;
           } else {
             successBody += `
-❌ **Automatic Registration Failed**
+❌ **Temporary Registration Submission Failed**
 
-Unfortunately, the automatic registration encountered an error:
-**Error**: ${registrationResult.error}
+Unfortunately, the automatic registration process encountered an error:
+**Error Message**: ${registrationResult.error}
 
-### Manual Registration Required:
-Please submit your project manually to the MCP Servers Hub:
-🔗 **Repository**: https://github.com/ACNet-AI/mcp-servers-hub
-📝 **Instructions**: Follow the contribution guidelines in the repository
+### Manual Registration Option:
+Please manually submit your project to MCP Servers Hub:
+🔗 **Hub Repository**: https://github.com/ACNet-AI/mcp-servers-hub
+📝 **Submission Guide**: Please follow the contribution guidelines in the repository
 
-Your project meets all quality requirements and should be accepted for manual registration.`;
+Your project fully meets quality requirements, manual registration should be accepted.`;
           }
 
           successBody += `
@@ -205,7 +211,7 @@ Your project meets all quality requirements and should be accepted for manual re
           await createIssue(
             context,
             registrationResult.success
-              ? "🚀 MCP Factory Project Registration Submitted"
+              ? "🎉 MCP Factory Project Temporarily Registered Successfully"
               : "⚠️ MCP Factory Project Registration Failed",
             successBody,
             registrationResult.success
@@ -278,7 +284,7 @@ ${reasons.map(reason => `- ${reason}`).join("\n")}
 - **Type**: MCP Factory Project
 - **Language**: Python (required for factory projects)
 - **Category**: ${projectInfo.category}
-${projectInfo.factoryVersion ? `- **Factory Version**: ${projectInfo.factoryVersion}` : ""}
+${projectInfo.version ? `- **Version**: ${projectInfo.version}` : ""}
 
 ## Action Required
 Please review this MCP Factory project for manual registration in the MCP Hub.

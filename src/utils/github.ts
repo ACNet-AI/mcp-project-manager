@@ -1,9 +1,7 @@
-import {
-  ProbotContext,
-  FileContent,
-  RepositoryCreateOptions,
-  MCPProjectRegistration,
-} from "./types.js";
+import { Octokit } from "@octokit/rest";
+import { createAppAuth } from "@octokit/auth-app";
+import { ProbotContext } from "./types.js";
+import { MCPProjectRegistration } from "./types.js";
 
 /**
  * GitHub API utility functions
@@ -28,12 +26,58 @@ export function getRepoInfo(context: ProbotContext) {
 }
 
 /**
+ * Get Installation Token for Hub repository
+ */
+async function getHubInstallationToken(): Promise<string> {
+  const appId = process.env.APP_ID;
+  const privateKey = process.env.PRIVATE_KEY;
+
+  if (!appId || !privateKey) {
+    throw new Error("Missing APP_ID or PRIVATE_KEY environment variables");
+  }
+
+  try {
+    const auth = createAppAuth({
+      appId: appId,
+      privateKey: privateKey,
+    });
+
+    // First get App token to query installation info
+    const appAuth = await auth({ type: "app" });
+    const appOctokit = new Octokit({ auth: appAuth.token });
+
+    // Find ACNet-AI/mcp-servers-hub installation
+    const installations = await appOctokit.rest.apps.listInstallations();
+
+    for (const installation of installations.data) {
+      if (installation.account?.login === "ACNet-AI") {
+        // Get Installation Token for this installation
+        const installationAuth = await auth({
+          type: "installation",
+          installationId: installation.id,
+        });
+
+        return installationAuth.token;
+      }
+    }
+
+    throw new Error(
+      "MCP Project Manager is not installed on ACNet-AI organization"
+    );
+  } catch (error) {
+    throw new Error(
+      `Failed to get Hub Installation Token: ${error instanceof Error ? error.message : String(error)}`
+    );
+  }
+}
+
+/**
  * Create user repository (Account permissions)
  */
 export async function createUserRepository(
   context: ProbotContext,
   repoName: string,
-  options: RepositoryCreateOptions = {}
+  options: any = {} // RepositoryCreateOptions is removed, so use 'any' for now
 ) {
   try {
     const response = await context.octokit.repos.createForAuthenticatedUser({
@@ -67,7 +111,12 @@ export async function checkRepositoryExists(
     await context.octokit.repos.get({ owner, repo });
     return true;
   } catch (error: unknown) {
-    if (error && typeof error === "object" && "status" in error && error.status === 404) {
+    if (
+      error &&
+      typeof error === "object" &&
+      "status" in error &&
+      error.status === 404
+    ) {
       return false;
     }
     throw error;
@@ -81,7 +130,7 @@ export async function pushFilesToRepository(
   context: ProbotContext,
   owner: string,
   repo: string,
-  files: FileContent[]
+  files: any[] // FileContent is removed, so use 'any' for now
 ) {
   try {
     // Get default branch
@@ -204,170 +253,86 @@ export async function registerToHub(
     const hubRepo = "mcp-servers-hub";
     const registryPath = "registry.json";
 
-    // Get current registry.json content
-    let currentRegistry: any[] = [];
-    try {
-      const { data: fileData } = await context.octokit.rest.repos.getContent({
-        owner: hubOwner,
-        repo: hubRepo,
-        path: registryPath,
-      });
+    // 🔧 Get Hub repository dedicated Installation Token
+    const hubToken = process.env.GITHUB_HUB_TOKEN;
+    let hubOctokit: Octokit;
 
-      if ("content" in fileData) {
-        const content = Buffer.from(fileData.content, "base64").toString(
-          "utf-8"
+    if (hubToken) {
+      // Use personal access token
+      hubOctokit = new Octokit({ auth: hubToken });
+      context.log.info("🔑 Using personal access token for Hub registration");
+    } else {
+      // Get Hub repository Installation Token
+      try {
+        const hubInstallationToken = await getHubInstallationToken();
+        hubOctokit = new Octokit({ auth: hubInstallationToken });
+        context.log.info("🏢 Using Hub repository Installation Token");
+      } catch (error) {
+        context.log.error(`❌ Failed to get Hub Installation Token: ${error}`);
+        throw new Error(
+          `Hub access failed: ${error instanceof Error ? error.message : String(error)}`
         );
-        currentRegistry = JSON.parse(content);
       }
-    } catch (error) {
-      context.log.warn(`Could not fetch current registry: ${error}`);
-      // Continue with empty registry if file doesn't exist
+    }
+
+    // Get current registry content
+    const { data: file } = await hubOctokit.rest.repos.getContent({
+      owner: hubOwner,
+      repo: hubRepo,
+      path: registryPath,
+    });
+
+    if (!("content" in file)) {
+      throw new Error("Registry file not found or is a directory");
+    }
+
+    // Decode and parse registry
+    const registryContent = Buffer.from(file.content, "base64").toString();
+    const registry = JSON.parse(registryContent);
+
+    if (!registry.projects) {
+      registry.projects = [];
     }
 
     // Check if project already exists
-    const existingIndex = currentRegistry.findIndex(
-      (item: any) => item.name === projectInfo.name
+    const existingIndex = registry.projects.findIndex(
+      (p: any) => p.name === projectInfo.name
     );
 
-    // Prepare new registry entry
-    const registryEntry = {
-      name: projectInfo.name,
-      description: projectInfo.description,
-      version: projectInfo.version,
-      language: projectInfo.language,
-      category: projectInfo.category,
-      repository: projectInfo.repository,
-      tags: projectInfo.tags || [],
-      addedAt: new Date().toISOString(),
-      ...(projectInfo.factoryVersion && {
-        factoryVersion: projectInfo.factoryVersion,
-      }),
-    };
-
-    let action = "add";
-    if (existingIndex >= 0) {
-      // Update existing entry
-      currentRegistry[existingIndex] = {
-        ...currentRegistry[existingIndex],
-        ...registryEntry,
-        updatedAt: new Date().toISOString(),
-      };
-      action = "update";
+    if (existingIndex !== -1) {
+      // Update existing project
+      registry.projects[existingIndex] = projectInfo;
+      context.log.info(`♻️ Updating existing project: ${projectInfo.name}`);
     } else {
-      // Add new entry
-      currentRegistry.push(registryEntry);
+      // Add new project
+      registry.projects.push(projectInfo);
+      context.log.info(`➕ Adding new project: ${projectInfo.name}`);
     }
 
-    // Sort registry by name for consistency
-    currentRegistry.sort((a, b) => a.name.localeCompare(b.name));
+    // Update file
+    const updatedContent = JSON.stringify(registry, null, 2);
 
-    const newContent = JSON.stringify(currentRegistry, null, 2);
-    const branchName = `register-${projectInfo.name}-${Date.now()}`;
+    await hubOctokit.rest.repos.createOrUpdateFileContents({
+      owner: hubOwner,
+      repo: hubRepo,
+      path: registryPath,
+      message: `${existingIndex !== -1 ? "Update" : "Add"} MCP project: ${projectInfo.name}`,
+      content: Buffer.from(updatedContent).toString("base64"),
+      sha: file.sha,
+    });
 
-    try {
-      // Get main branch SHA
-      const { data: mainBranch } = await context.octokit.rest.repos.getBranch({
-        owner: hubOwner,
-        repo: hubRepo,
-        branch: "main",
-      });
+    const registryUrl = `https://github.com/${hubOwner}/${hubRepo}/blob/main/${registryPath}`;
 
-      // Create new branch
-      await context.octokit.rest.git.createRef({
-        owner: hubOwner,
-        repo: hubRepo,
-        ref: `refs/heads/${branchName}`,
-        sha: mainBranch.commit.sha,
-      });
+    context.log.info(
+      `✅ Successfully registered ${projectInfo.name} to MCP Hub`
+    );
 
-      // Update registry.json on new branch
-      const { data: currentFile } = await context.octokit.rest.repos.getContent(
-        {
-          owner: hubOwner,
-          repo: hubRepo,
-          path: registryPath,
-          ref: branchName,
-        }
-      );
-
-      let fileSha = "";
-      if ("sha" in currentFile) {
-        fileSha = currentFile.sha;
-      }
-
-      await context.octokit.rest.repos.createOrUpdateFileContents({
-        owner: hubOwner,
-        repo: hubRepo,
-        path: registryPath,
-        message: `${action === "add" ? "Add" : "Update"} ${projectInfo.name} to MCP registry
-
-Project: ${projectInfo.name}
-Description: ${projectInfo.description}
-Language: ${projectInfo.language}
-Category: ${projectInfo.category}
-Repository: ${projectInfo.repository}
-
-Auto-generated by MCP Project Manager`,
-        content: Buffer.from(newContent).toString("base64"),
-        sha: fileSha,
-        branch: branchName,
-      });
-
-      // Create pull request
-      const { data: pullRequest } = await context.octokit.rest.pulls.create({
-        owner: hubOwner,
-        repo: hubRepo,
-        title: `${action === "add" ? "🚀 Register" : "📝 Update"} ${projectInfo.name} in MCP Registry`,
-        head: branchName,
-        base: "main",
-        body: `## ${action === "add" ? "New Project Registration" : "Project Update"}
-
-**Project Name**: ${projectInfo.name}
-**Description**: ${projectInfo.description}
-**Version**: ${projectInfo.version}
-**Language**: ${projectInfo.language}
-**Category**: ${projectInfo.category}
-**Repository**: ${projectInfo.repository}
-**Tags**: ${(projectInfo.tags || []).join(", ")}
-${projectInfo.factoryVersion ? `**Factory Version**: ${projectInfo.factoryVersion}` : ""}
-
-### 📋 Project Details
-This ${action === "add" ? "new MCP project has been automatically detected and validated" : "MCP project has been updated"} by the MCP Project Manager.
-
-### ✅ Validation Status
-- ✅ Project structure validated
-- ✅ MCP dependencies confirmed
-- ✅ Metadata extracted and verified
-- ✅ Registry format validated
-
-### 🔍 Review Checklist
-- [ ] Project name is unique and descriptive
-- [ ] Description accurately describes functionality
-- [ ] Repository is accessible and contains valid MCP code
-- [ ] Category and tags are appropriate
-- [ ] Documentation quality is adequate
-
----
-*This PR was automatically created by [MCP Project Manager](https://github.com/ACNet-AI/mcp-project-manager)*`,
-      });
-
-      context.log.info(
-        `✅ Created registration PR #${pullRequest.number} for ${projectInfo.name}`
-      );
-
-      return {
-        success: true,
-        url: pullRequest.html_url,
-      };
-    } catch (prError) {
-      context.log.error(`❌ Failed to create registration PR: ${prError}`);
-      return {
-        success: false,
-        error: `Failed to create registration PR: ${prError instanceof Error ? prError.message : String(prError)}`,
-      };
-    }
+    return {
+      success: true,
+      url: registryUrl,
+    };
   } catch (error) {
-    context.log.error(`❌ Project registration failed: ${error}`);
+    context.log.error(`❌ Failed to register to Hub: ${error}`);
     return {
       success: false,
       error: error instanceof Error ? error.message : String(error),

@@ -2,7 +2,60 @@
   "buildCommand": "npm run build",
   "public": true,
   "cleanUrls": true,
+  "functions": {
+    "api/github/installation-status.ts": {
+      "maxDuration": 30,
+      "memory": 1024
+    },
+
+    "api/github/install.ts": {
+      "maxDuration": 30,
+      "memory": 1024
+    },
+    "api/github/user-installations.ts": {
+      "maxDuration": 30,
+      "memory": 1024
+    },
+    "api/github/callback.ts": {
+      "maxDuration": 30,
+      "memory": 1024
+    },
+    "api/publish.ts": {
+      "maxDuration": 60,
+      "memory": 1024
+    },
+    "api/webhook-debug.ts": {
+      "maxDuration": 30,
+      "memory": 1024
+    }
+
+  },
   "headers": [
+    {
+      "source": "/api/github/(installation-status|install|user-installations|callback|token-status)",
+      "headers": [
+        {
+          "key": "X-Robots-Tag",
+          "value": "noindex"
+        },
+        {
+          "key": "Access-Control-Allow-Origin",
+          "value": "*"
+        },
+        {
+          "key": "Access-Control-Allow-Methods",
+          "value": "GET, OPTIONS"
+        },
+        {
+          "key": "Access-Control-Allow-Headers",
+          "value": "Content-Type"
+        },
+        {
+          "key": "Cache-Control",
+          "value": "no-cache, no-store, must-revalidate"
+        }
+      ]
+    },
     {
       "source": "/api/(.*)",
       "headers": [
@@ -16,7 +69,7 @@
         },
         {
           "key": "Access-Control-Allow-Headers",
-          "value": "X-Requested-With, Content-Type, Authorization, x-vercel-protection-bypass"
+          "value": "X-Requested-With, Content-Type, Authorization, x-vercel-protection-bypass, installation-id"
         }
       ]
     }
