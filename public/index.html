@@ -88,37 +88,45 @@
     <div class="container">
         <h1>
             🚀 MCP Project Manager
-            <span class="badge">OAuth Ready</span>
+            <span class="badge">GitHub App</span>
         </h1>
         
-        <p>GitHub OAuth-based MCP project repository creation service. Create GitHub repositories for personal accounts using GitHub OAuth User Access Token.</p>
+        <p>GitHub App-based MCP project repository creation service. Create GitHub repositories for personal and organization accounts using GitHub App installation.</p>
         
         <div class="feature-card">
-            <h3>🔐 OAuth Authentication</h3>
-            <p>Complete GitHub OAuth 2.0 flow with User Access Token for personal repository creation.</p>
-            <a href="/api/auth/authorize" class="button primary">Start OAuth Flow</a>
-            <a href="/api/test-oauth" class="button">Test Interface</a>
+            <h3>🔧 GitHub App Installation</h3>
+            <p>Complete GitHub App installation flow with Installation Token and optional OAuth for personal repository creation.</p>
+            <a href="/api/github/install" class="button primary">Install GitHub App</a>
+            <a href="/api/check-env" class="button">Check Environment</a>
         </div>
         
         <div class="feature-card">
             <h3>📡 API Endpoints</h3>
-            <p><strong>GET</strong> <code>/api/auth/authorize</code> - Generate GitHub OAuth URL</p>
-            <p><strong>GET</strong> <code>/api/auth/callback</code> - Handle OAuth callback</p>
-            <p><strong>GET</strong> <code>/api/auth/status</code> - Check authorization status</p>
+            <p><strong>GET</strong> <code>/api/github/install</code> - Generate GitHub App installation URL</p>
+            <p><strong>GET</strong> <code>/api/github/callback</code> - Handle installation callback</p>
+            <p><strong>GET</strong> <code>/api/github/installation-status</code> - Check installation status</p>
+            <p><strong>GET</strong> <code>/api/github/user-installations</code> - List user installations</p>
             <p><strong>POST</strong> <code>/api/publish</code> - Create GitHub repository</p>
-            <p><strong>GET</strong> <code>/api/test-oauth</code> - OAuth testing interface</p>
+            <p><strong>GET</strong> <code>/api/check-env</code> - Environment validation</p>
+            <p><strong>GET</strong> <code>/api/health</code> - Health check</p>
         </div>
         
         <div class="feature-card">
             <h3>🛠️ Quick Start</h3>
-            <p>1. <strong>Authorize:</strong> Visit <code>/api/auth/authorize</code> to start OAuth flow</p>
-            <p>2. <strong>Get Session:</strong> Complete GitHub authorization to get session ID</p>
-            <p>3. <strong>Create Repository:</strong> Use <code>/api/publish</code> with session ID</p>
+            <p>1. <strong>Install App:</strong> Visit <code>/api/github/install</code> to get installation URL</p>
+            <p>2. <strong>Complete Installation:</strong> Install GitHub App on your account/organization</p>
+            <p>3. <strong>Get Installation ID:</strong> Copy Installation ID from callback page</p>
+            <p>4. <strong>Create Repository:</strong> Use <code>/api/publish</code> with Installation ID</p>
+        </div>
+        
+        <div class="feature-card">
+            <h3>📚 Documentation</h3>
+            <p>For detailed API documentation and usage examples, see the <a href="/docs/UNIFIED_API_GUIDE.md" target="_blank">Unified API Guide</a>.</p>
         </div>
         
         <div class="footer">
             <p>
-                <strong>Tech Stack:</strong> GitHub OAuth | Vercel | TypeScript | Octokit<br>
+                <strong>Tech Stack:</strong> GitHub App | Vercel | TypeScript | Octokit<br>
                 <strong>Deployment:</strong> <a href="https://vercel.com/" target="_blank">Vercel Platform</a> | 
                 <strong>Developer:</strong> ACNet-AI
             </p>

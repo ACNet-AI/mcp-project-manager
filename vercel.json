@@ -23,16 +23,11 @@
     "api/publish.ts": {
       "maxDuration": 60,
       "memory": 1024
-    },
-    "api/webhook-debug.ts": {
-      "maxDuration": 30,
-      "memory": 1024
     }
-
   },
   "headers": [
     {
-      "source": "/api/github/(installation-status|install|user-installations|callback|token-status)",
+      "source": "/api/github/(installation-status|install|user-installations|callback)",
       "headers": [
         {
           "key": "X-Robots-Tag",
