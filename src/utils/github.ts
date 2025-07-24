@@ -1,6 +1,6 @@
 import { Octokit } from "@octokit/rest";
 import { createAppAuth } from "@octokit/auth-app";
-import { ProbotContext } from "./types.js";
+import { ProbotContext, FileContent, RepositoryCreateOptions } from "./types.js";
 import { MCPProjectRegistration } from "./types.js";
 
 /**
@@ -8,13 +8,58 @@ import { MCPProjectRegistration } from "./types.js";
  */
 
 /**
+ * Validate and process private key from environment
+ */
+function validatePrivateKey(privateKey: string): string {
+  if (!privateKey) {
+    throw new Error("PRIVATE_KEY environment variable is required");
+  }
+  
+  // Handle newline escaping issues common in deployment environments
+  const processedKey = privateKey.replace(/\\n/g, '\n');
+  
+  // Basic validation - check for required PEM format
+  if (!processedKey.includes('-----BEGIN') || !processedKey.includes('-----END')) {
+    throw new Error("PRIVATE_KEY must be in valid PEM format");
+  }
+  
+  return processedKey;
+}
+
+/**
+ * Validate environment variables
+ */
+function validateEnvironment(): { appId: string; privateKey: string } {
+  const appId = process.env.APP_ID;
+  const privateKey = process.env.PRIVATE_KEY;
+
+  if (!appId) {
+    throw new Error("APP_ID environment variable is required");
+  }
+
+  if (!privateKey) {
+    throw new Error("PRIVATE_KEY environment variable is required");
+  }
+
+  // Validate APP_ID is numeric
+  if (!/^\d+$/.test(appId)) {
+    throw new Error("APP_ID must be a numeric value");
+  }
+
+  return {
+    appId,
+    privateKey: validatePrivateKey(privateKey)
+  };
+}
+
+/**
  * Get repository information from context
  */
 export function getRepoInfo(context: ProbotContext) {
-  const payload = context.payload as any;
-  const { repository } = payload;
+  const payload = context.payload;
+  const repository = 'repository' in payload ? payload.repository : null;
 
-  if (!repository) {
+  if (!repository || !repository.owner) {
     throw new Error("Repository information is missing from payload");
   }
 
@@ -29,12 +74,7 @@ export function getRepoInfo(context: ProbotContext) {
  * Get Installation Token for Hub repository
  */
 async function getHubInstallationToken(): Promise<string> {
-  const appId = process.env.APP_ID;
-  const privateKey = process.env.PRIVATE_KEY;
-
-  if (!appId || !privateKey) {
-    throw new Error("Missing APP_ID or PRIVATE_KEY environment variables");
-  }
+  const { appId, privateKey } = validateEnvironment();
 
   try {
     const auth = createAppAuth({
@@ -77,7 +117,7 @@ async function getHubInstallationToken(): Promise<string> {
 export async function createUserRepository(
   context: ProbotContext,
   repoName: string,
-  options: any = {} // RepositoryCreateOptions is removed, so use 'any' for now
+  options: RepositoryCreateOptions = {}
 ) {
   try {
     const response = await context.octokit.repos.createForAuthenticatedUser({
@@ -130,7 +170,7 @@ export async function pushFilesToRepository(
   context: ProbotContext,
   owner: string,
   repo: string,
-  files: any[] // FileContent is removed, so use 'any' for now
+  files: FileContent[]
 ) {
   try {
     // Get default branch
@@ -296,17 +336,17 @@ export async function registerToHub(
 
     // Check if project already exists
     const existingIndex = registry.projects.findIndex(
-      (p: any) => p.name === projectInfo.name
+      (p: MCPProjectRegistration) => p.repository === projectInfo.repository  // 🔧 Fix: Use repository URL for identification
     );
 
     if (existingIndex !== -1) {
       // Update existing project
       registry.projects[existingIndex] = projectInfo;
-      context.log.info(`♻️ Updating existing project: ${projectInfo.name}`);
+      context.log.info(`♻️ Updating existing project: ${projectInfo.name} (${projectInfo.repository})`);
     } else {
       // Add new project
       registry.projects.push(projectInfo);
-      context.log.info(`➕ Adding new project: ${projectInfo.name}`);
+      context.log.info(`➕ Adding new project: ${projectInfo.name} (${projectInfo.repository})`);
     }
 
     // Update file
@@ -333,6 +373,112 @@ export async function registerToHub(
     };
   } catch (error) {
     context.log.error(`❌ Failed to register to Hub: ${error}`);
+    return {
+      success: false,
+      error: error instanceof Error ? error.message : String(error),
+    };
+  }
+}
+
+/**
+ * Remove project from MCP Hub registry
+ */
+export async function removeFromHub(
+  context: ProbotContext,
+  repositoryUrl: string  // 🔧 Parameter change: Use complete repository URL
+): Promise<{ success: boolean; url?: string; error?: string }> {
+  try {
+    context.log.info(
+      `🗑️ Attempting to remove project from MCP Servers Hub: ${repositoryUrl}`
+    );
+
+    const hubOwner = "ACNet-AI";
+    const hubRepo = "mcp-servers-hub";
+    const registryPath = "registry.json";
+
+    // 🔧 Get Hub repository dedicated Installation Token
+    const hubToken = process.env.GITHUB_HUB_TOKEN;
+    let hubOctokit: Octokit;
+
+    if (hubToken) {
+      // Use personal access token
+      hubOctokit = new Octokit({ auth: hubToken });
+      context.log.info("🔑 Using personal access token for Hub removal");
+    } else {
+      // Get Hub repository Installation Token
+      try {
+        const hubInstallationToken = await getHubInstallationToken();
+        hubOctokit = new Octokit({ auth: hubInstallationToken });
+        context.log.info("🏢 Using Hub repository Installation Token");
+      } catch (error) {
+        context.log.error(`❌ Failed to get Hub Installation Token: ${error}`);
+        throw new Error(
+          `Hub access failed: ${error instanceof Error ? error.message : String(error)}`
+        );
+      }
+    }
+
+    // Get current registry content
+    const { data: file } = await hubOctokit.rest.repos.getContent({
+      owner: hubOwner,
+      repo: hubRepo,
+      path: registryPath,
+    });
+
+    if (!("content" in file)) {
+      throw new Error("Registry file not found or is a directory");
+    }
+
+    // Decode and parse registry
+    const registryContent = Buffer.from(file.content, "base64").toString();
+    const registry = JSON.parse(registryContent);
+
+    if (!registry.projects) {
+      registry.projects = [];
+    }
+
+    // Check if project exists by repository URL
+    const existingIndex = registry.projects.findIndex(
+      (p: MCPProjectRegistration) => p.repository === repositoryUrl  // 🔧 Fix: Use repository URL for lookup
+    );
+
+    if (existingIndex === -1) {
+      context.log.info(`📝 Project not found in registry: ${repositoryUrl}`);
+      return {
+        success: true,
+        url: `https://github.com/${hubOwner}/${hubRepo}/blob/main/${registryPath}`,
+      };
+    }
+
+    // Remove project from registry
+    const removedProject = registry.projects[existingIndex];
+    registry.projects.splice(existingIndex, 1);
+    context.log.info(`🗑️ Removing project: ${removedProject.name} (${repositoryUrl})`);
+
+    // Update file
+    const updatedContent = JSON.stringify(registry, null, 2);
+
+    await hubOctokit.rest.repos.createOrUpdateFileContents({
+      owner: hubOwner,
+      repo: hubRepo,
+      path: registryPath,
+      message: `Remove MCP project: ${removedProject.name}`,
+      content: Buffer.from(updatedContent).toString("base64"),
+      sha: file.sha,
+    });
+
+    const registryUrl = `https://github.com/${hubOwner}/${hubRepo}/blob/main/${registryPath}`;
+
+    context.log.info(
+      `✅ Successfully removed project from MCP Hub: ${repositoryUrl}`
+    );
+
+    return {
+      success: true,
+      url: registryUrl,
+    };
+  } catch (error) {
+    context.log.error(`❌ Failed to remove from Hub: ${error}`);
     return {
       success: false,
       error: error instanceof Error ? error.message : String(error),

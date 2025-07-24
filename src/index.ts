@@ -9,6 +9,7 @@ import {
   createIssue,
   reportError,
   registerToHub,
+  removeFromHub,
   LABELS,
 } from "./utils/github.js";
 import {
@@ -506,6 +507,37 @@ This repository does not appear to be an MCP Factory project. The MCP Project Ma
     } catch (error) {
       context.log.error("Error processing issue:", error);
       await reportError(context, "issues", error);
+    }
+  });
+
+  // Handle repository deletion - remove projects from Hub when repository is deleted
+  app.on("repository.deleted", async context => {
+    const { repository } = context.payload;
+
+    try {
+      context.log.info(`📦 Repository deleted: ${repository.full_name}`);
+
+      // Since the repository is deleted, we can't check if it was an MCP project
+      // Instead, try to remove it from Hub by repository URL (if it exists there)
+      const repositoryUrl = `https://github.com/${repository.owner.login}/${repository.name}`;  // 🔧 Fix: Use complete repository URL
+      
+      context.log.info(`🗑️ Attempting to remove project from Hub: ${repositoryUrl}`);
+
+      // Remove from Hub
+      const removalResult = await removeFromHub(context, repositoryUrl);  // 🔧 Fix: Pass repository URL
+
+      if (removalResult.success) {
+        context.log.info(
+          `✅ Successfully processed removal from MCP Hub: ${repositoryUrl}`
+        );
+      } else {
+        context.log.error(
+          `❌ Failed to remove from Hub: ${repositoryUrl} - ${removalResult.error}`
+        );
+      }
+    } catch (error) {
+      context.log.error("Error processing repository deletion:", error);
+      await reportError(context, "repository_deleted", error);
     }
   });
 };

@@ -40,6 +40,10 @@ vi.mock("../src/utils/github.js", () => ({
     success: true,
     url: "https://github.com/ACNet-AI/mcp-servers-hub/blob/main/registry.json",
   }),
+  removeFromHub: vi.fn().mockResolvedValue({
+    success: true,
+    url: "https://github.com/ACNet-AI/mcp-servers-hub/blob/main/registry.json",
+  }),
   reportError: vi.fn().mockResolvedValue(undefined),
   LABELS: {
     MCP_SERVER: "mcp-server",
@@ -925,6 +929,70 @@ build-backend = "setuptools.build_meta"`
       });
 
       expect(true).toBe(true);
+    });
+  });
+
+  describe("repository.deleted", () => {
+    test("handles repository deletion without errors", async () => {
+      const repositoryDeleted = {
+        action: "deleted",
+        repository: {
+          id: 123,
+          name: "test-mcp-server",
+          full_name: "test-user/test-mcp-server",
+          owner: {
+            login: "test-user",
+            id: 456,
+          },
+          private: false,
+          html_url: "https://github.com/test-user/test-mcp-server",
+        },
+        installation: {
+          id: 2,
+        },
+        sender: {
+          login: "test-user",
+          id: 456,
+        },
+      };
+
+      await expect(
+        probot.receive({
+          name: "repository",
+          payload: repositoryDeleted,
+        })
+      ).resolves.not.toThrow();
+    });
+
+    test("handles removal failure gracefully", async () => {
+      const repositoryDeleted = {
+        action: "deleted",
+        repository: {
+          id: 123,
+          name: "test-mcp-server",
+          full_name: "test-user/test-mcp-server",
+          owner: {
+            login: "test-user",
+            id: 456,
+          },
+          private: false,
+          html_url: "https://github.com/test-user/test-mcp-server",
+        },
+        installation: {
+          id: 2,
+        },
+        sender: {
+          login: "test-user",
+          id: 456,
+        },
+      };
+
+      await expect(
+        probot.receive({
+          name: "repository",
+          payload: repositoryDeleted,
+        })
+      ).resolves.not.toThrow();
     });
   });
 });

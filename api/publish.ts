@@ -517,12 +517,12 @@ async function createRepository(
 }
 
 // 🔧 Fix: Manual request body parsing, solve body parsing issues in Vercel environment
-async function parseRequestBody(req: VercelRequest): Promise<any> {
+async function parseRequestBody(req: VercelRequest): Promise<CreateRepoRequest> {
   return new Promise((resolve, reject) => {
     if (req.body) {
       // If req.body exists, use it directly
       console.log("[BODY-PARSE] Using existing req.body:", typeof req.body);
-      resolve(req.body);
+      resolve(req.body as CreateRepoRequest);
       return;
     }
 
@@ -560,6 +560,8 @@ async function parseRequestBody(req: VercelRequest): Promise<any> {
     });
   });
 }
+
+
 
 export default function handler(req: VercelRequest, res: VercelResponse): void {
   // Set CORS headers

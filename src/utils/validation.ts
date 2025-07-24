@@ -432,6 +432,7 @@ import {
   PyProjectConfig,
   PythonSetupConfig,
   UnifiedMCPDetectionResult,
+  ProbotContext,
 } from "./types.js";
 
 /**
@@ -497,11 +498,17 @@ export function parseSetupPy(content: string): PythonSetupConfig | null {
  * Detect project configuration from GitHub context
  */
 export async function detectProjectConfig(
-  context: any
+  context: ProbotContext
 ): Promise<ProjectConfig | null> {
   const { octokit, payload } = context;
-  const owner = payload.repository.owner.login;
-  const repo = payload.repository.name;
+  const repository = 'repository' in payload ? payload.repository : null;
+  
+  if (!repository || !repository.owner) {
+    throw new Error("Repository information is missing from payload");
+  }
+  
+  const owner = repository.owner.login;
+  const repo = repository.name;
 
   try {
     // Try Python first (pyproject.toml)
@@ -740,7 +747,7 @@ export function detectMCPProject(
 /**
  * Validate project configuration from context (async version for tests)
  */
-export async function validateProject(context: any): Promise<ValidationResult> {
+export async function validateProject(context: ProbotContext): Promise<ValidationResult> {
   try {
     const projectConfig = await detectProjectConfig(context);
     return validateProjectConfig(projectConfig);

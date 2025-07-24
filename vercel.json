@@ -3,6 +3,10 @@
   "public": true,
   "cleanUrls": true,
   "functions": {
+    "api/github/webhooks/index.ts": {
+      "maxDuration": 60,
+      "memory": 1024
+    },
     "api/github/installation-status.ts": {
       "maxDuration": 30,
       "memory": 1024
