@@ -16,6 +16,8 @@ export default function handler(req: VercelRequest, res: VercelResponse) {
     const clientId = process.env.GITHUB_CLIENT_ID;
     const clientSecret = process.env.GITHUB_CLIENT_SECRET;
     const nodeEnv = process.env.NODE_ENV;
+    const kvRestApiUrl = process.env.KV_REST_API_URL;
+    const kvRestApiToken = process.env.KV_REST_API_TOKEN;
 
     const responseData = {
       environment: nodeEnv || "unknown",
@@ -37,6 +39,14 @@ export default function handler(req: VercelRequest, res: VercelResponse) {
           present: !!clientSecret,
           length: clientSecret?.length || 0,
         },
+        KV_REST_API_URL: {
+          present: !!kvRestApiUrl,
+          length: kvRestApiUrl?.length || 0,
+        },
+        KV_REST_API_TOKEN: {
+          present: !!kvRestApiToken,
+          length: kvRestApiToken?.length || 0,
+        },
       },
       oauth_support: {
         enabled: !!(clientId && clientSecret),
@@ -44,6 +54,13 @@ export default function handler(req: VercelRequest, res: VercelResponse) {
           clientId && clientSecret
             ? "OAuth tokens can be obtained"
             : "OAuth setup incomplete",
+      },
+      redis_support: {
+        enabled: !!(kvRestApiUrl && kvRestApiToken),
+        status:
+          kvRestApiUrl && kvRestApiToken
+            ? "Redis storage available"
+            : "Redis configuration incomplete",
       },
       message: "Environment check completed",
     };
