@@ -25,11 +25,15 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     return res.end(JSON.stringify({ error: "Method not allowed" }));
   }
 
-  const installation_id = req.query.installation_id as string;
+  const installation_id = req.query?.installation_id as string;
 
   if (!installation_id) {
     res.statusCode = 400;
-    return res.end(JSON.stringify({ error: "installation_id parameter required" }));
+    return res.end(JSON.stringify({ 
+      error: "installation_id parameter required",
+      query: req.query,
+      url: req.url 
+    }));
   }
 
   try {
@@ -43,10 +47,19 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     const oauthKey = `oauth:${installation_id}`;
     const oauthData = await redis.get(oauthKey);
 
+    let parsedData = null;
+    if (oauthData) {
+      try {
+        parsedData = typeof oauthData === 'string' ? JSON.parse(oauthData) : oauthData;
+      } catch (e) {
+        parsedData = { raw: oauthData, parse_error: true };
+      }
+    }
+
     const response = {
       installation_id,
       oauth_token_exists: !!oauthData,
-      oauth_data: oauthData ? JSON.parse(oauthData as string) : null,
+      oauth_data: parsedData,
       timestamp: new Date().toISOString(),
     };
 
