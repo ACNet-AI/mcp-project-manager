@@ -69,9 +69,6 @@ default_user_permissions:
 
   # 🔧 Production required: correct committer information
   email_addresses: read
-  
-  # ⭐ Core permission: create personal repositories
-  repository_creation: write
 
 # App basic information
 name: "MCP Project Manager"
